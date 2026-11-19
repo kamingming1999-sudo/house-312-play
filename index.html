@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101512">
+  <title>House 312 | Phone Horror</title>
+  <meta name="description" content="Explore a decaying country house in first person. A television warns you not to press the red button. The choice is yours.">
+  <link rel="stylesheet" href="assets/game/game.css?v=listener27">
+</head>
+<body>
+  <canvas id="gameCanvas" tabindex="0" aria-label="First-person view of house 312"></canvas>
+  <div class="vignette" aria-hidden="true"></div>
+  <div class="haunt-veil" id="hauntVeil" aria-hidden="true"></div>
+  <header class="hud">
+    <div class="hud-left"><p class="room-label">HOUSE 312</p><p class="objective" id="objective">An old house. A warning. A choice.</p></div>
+    <div class="hud-right">
+
+      <button type="button" class="small-button" id="mute" aria-pressed="false">Sound on</button>
+      <button type="button" class="small-button" data-preview disabled>Preview</button><button type="button" class="small-button" id="fullScreen">Full screen</button>
+      <button type="button" class="small-button" id="radioToggle" aria-expanded="false" aria-controls="fieldReceiver" disabled>Field radio</button>
+      <button type="button" class="small-button" id="pause">Pause</button>
+    </div>
+  </header>
+  <aside class="field-receiver" id="fieldReceiver" aria-label="Field receiver" hidden>
+    <div class="receiver-top"><span>RX—312</span><span>FIELD RECEIVER</span><button type="button" id="closeReceiver" aria-label="Close field receiver">×</button></div>
+    <div class="receiver-display"><span class="receiver-channel">LOCAL CHANNEL / 01</span><div class="receiver-reading"><span id="radioReading">0 / 5</span><div class="receiver-bars" aria-hidden="true"><i id="signalBar1"></i><i id="signalBar2"></i><i id="signalBar3"></i><i id="signalBar4"></i><i id="signalBar5"></i></div></div><p id="radioStatus">Stand by.</p></div>
+    <div class="receiver-actions"><button type="button" id="askSign">Ask for a sign</button><button type="button" id="openJournal">Journal · 0/3</button></div>
+  </aside>
+  <div class="reticle" id="reticle" aria-hidden="true"></div>
+  <button type="button" class="interact" id="interact" hidden><kbd>E</kbd><span id="interactLabel">Interact</span></button>
+  <p class="toast" id="toast" role="status" aria-live="polite" hidden></p>
+  <div class="controls"><span><kbd>W A S D</kbd> Move</span><span>Mouse / drag to look</span><span><kbd>E</kbd> Interact</span><span><kbd>F</kbd> Flashlight</span><span class="hint">Esc to pause</span></div>
+  <div class="mobile-controls" id="mobileControls" hidden>
+    <div class="move-stick" id="moveStick" hidden role="group" aria-label="Move with your left thumb"><span class="stick-ring" aria-hidden="true"></span><span class="stick-thumb" id="stickThumb" aria-hidden="true"></span><span class="stick-label" aria-hidden="true">MOVE</span></div>
+    <button type="button" class="stop-moving" id="stopMoving" hidden>Stop walking</button>
+    <span class="look-hint" aria-hidden="true">TAP FLOOR TO WALK<br>DRAG TO LOOK</span>
+  </div>
+  <p class="decision-status" id="decisionStatus" aria-live="polite"></p>
+  <div class="blackout" id="blackout" aria-hidden="true"></div>
+  <div id="showHUD" hidden>
+    <div id="showLens" aria-hidden="true"></div>
+    <div id="showAperture" aria-hidden="true" hidden><div class="keyhole-bore"><img id="showLastFrame" src="assets/game/keyhole-listener.webp" alt=""></div></div><div id="showFold" aria-hidden="true"></div>
+    <span id="showTape" hidden></span><figure id="showWitness" hidden><img src="assets/game/kitchen-scream.png" alt="The painted eyes above the sink"><figcaption>Above the sink</figcaption></figure>
+    <div class="show-dock"><p id="showCaption" role="status" aria-live="polite" hidden></p>
+      <div id="showActions" aria-label="Chapter actions"><button type="button" id="showAct0" hidden></button><button type="button" id="showAct1" hidden></button><button type="button" id="showAct2" hidden></button><button type="button" id="showAct3" hidden></button><button type="button" id="showAct4" hidden></button></div>
+    </div>
+  </div>
+  <main class="overlay" id="overlay">
+    <section class="panel intro-panel" data-panel="intro" aria-labelledby="introTitle">
+      <p class="eyebrow">HOUSE 312 · TOUCH TO EXPLORE</p>
+      <h1 id="introTitle">Don't press<br>the button.</h1>
+      <p class="lede">The house is listening.</p>
+      <div class="panel-actions"><button type="button" class="primary" id="enterRoom" disabled>Opening the old house…</button><button type="button" class="secondary" data-preview disabled>Show jump scare</button></div>
+      <button class="secondary" type="button" id="showContinue" hidden>Continue from the last lesson</button><p id="introCopy">Swipe to look around. Tap the floor to walk.</p>
+      <p class="fine"><a href="phone.html?chapter=2&amp;v=listener27">Play Chapter II · The Show Home</a></p>
+      <details class="play-guide">
+        <summary>Controls &amp; house rules</summary>
+        <p>Tap the monitor to approach it, then tap its lettering to begin. Obey only “Keeper says” orders. When told to hide, tap the table and stay under it until permission to leave.</p>
+        <p>Before starting the TV, try Field radio to ask the house for a sign and collect evidence.</p>
+        <p class="guide">Swipe or drag: look · Tap floor: walk<br>Keyboard: WASD move · C hide or leave cover · E interact.</p>
+        <p class="fine"><a href="house-preview.html">House design</a><a href="scare-preview.html">Scare video</a><a href="dont-press-the-button.html">Film version</a><a href="3d-credits.html">Credits</a></p>
+      </details>
+    </section>
+    <section class="panel" data-panel="pause" hidden>
+      <p class="eyebrow">ROOM 312</p><h2>The room<br>can wait.</h2><p>The game is paused.</p>
+      <div class="panel-actions"><button type="button" class="primary" data-resume>Resume</button><button type="button" class="secondary" data-restart>Start again</button></div>
+      <div class="panel-actions"><button type="button" class="secondary" data-preview disabled>Preview jump scare</button></div><p class="guide">Drag anywhere in the room to look around.</p>
+    </section>
+    <section class="panel" data-panel="note" hidden>
+      <p class="eyebrow">A NOTE BESIDE THE TELEVISION</p>
+      <p class="paper-note"><strong>TV TIP</strong>Watch the TV. Follow an order only if it starts with “Keeper says…”<br><br>Tap the TV lettering to begin. When you see “Keeper says… hide,” tap the table. Stay underneath until you see “Keeper says… come out.”<br><br>Leave the red button alone.</p>
+      <div class="panel-actions"><button type="button" class="primary" data-resume>Put it down</button></div>
+    </section>
+    <section class="panel" data-panel="attic-note" aria-labelledby="atticNoteCopy" hidden>
+      <p class="eyebrow">INSIDE THE ATTIC BOX</p>
+      <p class="paper-note attic-message" id="atticNoteCopy">Turn around, you fool.</p>
+      <div class="panel-actions"><button type="button" class="primary" data-resume>Put it down</button></div>
+    </section>
+    <section class="panel" data-panel="corner-note" hidden>
+      <p class="eyebrow">IN THE MARGIN OF THE FOLDED PAPER</p>
+      <p class="paper-note"><strong>SOMEONE UPSTAIRS</strong><span id="cornerClueCopy">Above the last stair, someone is watching. Look up. Touch the face to send it away.</span></p>
+      <div class="panel-actions"><button type="button" class="primary" data-resume>Put it down</button></div>
+    </section>
+    <section class="panel" data-panel="journal" hidden>
+      <p class="eyebrow">HOUSE 312 / FIELD NOTES</p><h2>The house<br>answered.</h2>
+      <p class="journal-progress" id="journalProgress">0 of 3 responses recorded</p>
+      <p class="journal-records" id="journalRecords">Use the field radio to ask for a sign. Listen and watch the room.</p>
+      <div class="panel-actions"><button type="button" class="primary" data-resume>Return to the room</button></div>
+    </section>
+    <section class="panel" data-panel="choice" hidden>
+      <p class="eyebrow">THE LAST ORDER</p><h2>You listened.<br>You survived.</h2>
+      <p>The room latch has released. The front door beyond the hallway is still locked. Leave quietly, or invite stronger disturbances on the way out.</p>
+      <div class="panel-actions"><button type="button" class="primary" data-deeper>I can handle more horror</button><button type="button" class="secondary" data-leave>Leave quietly</button></div>
+    </section>
+    <section class="panel" data-panel="aftermath" hidden>
+      <p class="eyebrow" id="aftermathEyebrow">YOU PRESSED IT</p><h2 id="aftermathTitle">That wasn't<br>the joke.</h2>
+      <p id="aftermathCopy">The picture was the easy part. The door is unlocked now.</p>
+      <div class="panel-actions"><button type="button" class="primary" id="failureExit" data-leave>Find the exit</button><button type="button" class="secondary" data-restart>Try again</button></div>
+
+    </section>
+    <section class="panel" data-panel="ending" hidden>
+      <p class="eyebrow">CHAPTER II / THE SHOW HOME</p><h2 id="endingTitle">You made it out.</h2><p id="endingCopy">The room kept your choice.</p><button type="button" class="primary" id="showRetry" hidden>Retry the last lesson</button>
+      <div class="panel-actions"><button type="button" class="primary" data-restart>Start again</button><a class="secondary" href="dont-press-the-button.html">Watch the film</a></div>
+
+    </section>
+    <section class="panel" data-panel="previewEnd" hidden>
+      <p class="eyebrow">JUMP SCARE PREVIEW</p><h2>Now you<br>have seen it.</h2>
+      <p>The nightmare Roomkeeper has a sharper face and an unobstructed close-up. The reveal holds here for 2.4 seconds so you can inspect it. Your press count is unchanged.</p>
+      <div class="panel-actions"><button type="button" class="primary" data-preview disabled>Replay scare</button><button type="button" class="secondary" data-play>Play the game</button></div>
+      <p class="fine"><a href="scare-preview.html?v=nightmare4">Watch the clear preview</a><a href="scare-preview.html?hold=1&amp;v=nightmare4">Hold the close-up image</a></p>
+    </section>
+    <section class="panel" data-panel="error" id="errorPanel" hidden>
+      <p class="eyebrow">ROOM 312</p><h2>The room<br>couldn't open.</h2>
+      <p>This device couldn't start the 3D scene. You can still watch the jump scare preview below.</p>
+      <div class="panel-actions"><a class="primary" href="scare-preview.html">Show the jump scare</a><a class="secondary" href="phone.html">Try 3D again</a></div>
+    </section>
+  </main>
+  <script type="module">
+    import('./assets/game/game.mjs?v=listener27').catch(error => {
+      console.error('Room 312 could not start:', error);
+      document.querySelectorAll('[data-panel]').forEach(panel => { panel.hidden = panel.dataset.panel !== 'error'; });
+      document.getElementById('overlay').hidden = false;
+    });
+  </script>
+  <noscript>This game needs JavaScript. <a href="dont-press-the-button.html">Watch the film version.</a></noscript>
+</body>
+</html>
