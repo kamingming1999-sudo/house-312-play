@@ -15,7 +15,7 @@ const asset = name => new URL(name, import.meta.url).href;
 /** Audio is unlocked by init/resume in a user gesture; cue/update never unlock it. */
 export function createAudio(getState = () => ({})) {
   let context, master, breathingGain, noiseBuffer, brownBuffer;
-  let scoreGain, scoreQuietUntil = 0, reading = false;
+  let rainGain, scoreGain, scoreQuietUntil = 0, reading = false;
   let muted = false, paused = false, breathTime = 0, nextHeartbeat = 0, whisperIndex = 0;
   let warningWanted = false, decodingStarted = false, currentCommand = null, currentCommandUntil = 0;
   let currentOmen = null, omenSilenceUntil = 0;
@@ -54,6 +54,30 @@ export function createAudio(getState = () => ({})) {
       samples[index] = brown ? previous * 4 : white;
     }
     return buffer;
+  }
+  function startWindowRain() {
+    // A seamless noise bed with short, irregular taps against the glass.
+    const rate = context.sampleRate;
+    const rain = context.createBuffer(1, rate * 4, rate);
+    const samples = rain.getChannelData(0), white = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < samples.length; i++) samples[i] = white[i] * .18;
+    for (let drop = 1; drop < 230; drop++) {
+      const at = Math.floor((drop * .61803399 % 1) * samples.length);
+      const pitch = 1200 + Math.abs(white[at]) * 2900;
+      for (let n = 0; n < rate * .023; n++) {
+        const t = n / rate;
+        samples[(at + n) % samples.length] += .29 * Math.exp(-t * 235) * Math.sin(pitch * t * 2 * Math.PI);
+      }
+    }
+    const source = context.createBufferSource(), muffle = context.createBiquadFilter();
+    source.buffer = rain;
+    source.loop = true;
+    muffle.type = 'lowpass';
+    muffle.frequency.value = 2500;
+    rainGain = context.createGain();
+    rainGain.gain.value = 0;
+    source.connect(muffle).connect(rainGain).connect(master);
+    source.start();
   }
   function startScore() {
     // A bowed-sounding pedal with two slow swells. Each frequency completes
@@ -111,6 +135,7 @@ export function createAudio(getState = () => ({})) {
       breathingGain = context.createGain(); breathingGain.gain.value = 0;
       breath.connect(highpass).connect(lowpass).connect(breathingGain).connect(master); breath.start();
       startScore();
+      startWindowRain();
       nextHeartbeat = context.currentTime + 1;
     }
     if (!decodingStarted) {
@@ -315,6 +340,7 @@ export function createAudio(getState = () => ({})) {
       paused = true; reading = keepScore; warning?.pause(); stopSources();
       if (context) {
         breathingGain.gain.cancelScheduledValues(context.currentTime); breathingGain.gain.value = 0;
+        rainGain.gain.cancelScheduledValues(context.currentTime); rainGain.gain.value = 0;
         scoreQuietUntil = 0;
         nextHeartbeat = context.currentTime + .8;
         if (reading) {
@@ -342,6 +368,7 @@ export function createAudio(getState = () => ({})) {
         master.gain.setTargetAtTime(muted ? 0 : .30, context.currentTime, .025);
         if (muted) {
           stopSources();
+          rainGain.gain.setTargetAtTime(0, context.currentTime, .025);
           breathingGain.gain.setTargetAtTime(0, context.currentTime, .025);
           scoreGain.gain.setTargetAtTime(0, context.currentTime, .025);
           scoreQuietUntil = 0;
@@ -369,20 +396,29 @@ export function createAudio(getState = () => ({})) {
       thump(context.currentTime + .12, hasImpact ? .18 : .32, .5, 58);
     },
     cue(event = {}) {
-      if (!canPlay() || !haunted()) return;
+      if (!canPlay()) return;
+      const thunder = event.type === 'thunder';
+      if (thunder ? !['explore', 'hall'].includes(state().phase) : !haunted()) return;
       const cue = { ...event, pan: Number.isFinite(event.pan) ? clamp(event.pan, -1, 1) : 0,
         intensity: Number.isFinite(event.intensity) ? clamp(event.intensity, 0, 1) : .5 };
-      if (cue.type === 'knock') knock(cue.pan, cue.intensity);
+      if (thunder) {
+        const strength = cue.intensity;
+        noise(.46, .27 * strength, 1250, cue.pan, 0, true, .06);
+        noise(1.8, .83 * strength, 500, cue.pan, .08, true, .19);
+        noise(2.45, .64 * strength, 260, cue.pan * .7, .39, true, .4);
+      } else if (cue.type === 'knock') knock(cue.pan, cue.intensity);
       else if (cue.type === 'whisper') whisper(cue);
       else if (cue.type === 'scrape') noise(.85, .12 + cue.intensity * .13, 950, cue.pan, 0, false, .2);
       else if (cue.type === 'static') noise(.45, .06 + cue.intensity * .07, 1350, cue.pan, 0, false, .13);
       else if (cue.type === 'breath' || cue.type === 'stalker') noise(1.3, .14 + cue.intensity * .10, 700, cue.pan, 0, true, .22);
     },
-    update(dt, { tension = 0, moving = false } = {}) {
+    update(dt, { tension = 0, moving = false, windowRain = 0 } = {}) {
       if (!context || context.state !== 'running') return;
       const at = context.currentTime;
       const strength = Number.isFinite(tension) ? clamp(tension, 0, 1) : 0;
       const quiet = paused || muted || warningWanted || at < Math.max(scoreQuietUntil, omenSilenceUntil, currentCommandUntil);
+      const rainLevel = paused || muted ? 0 : clamp(windowRain, 0, 1) * (quiet ? .10 : .21);
+      rainGain.gain.setTargetAtTime(rainLevel, at, .24);
       if (!reading) scoreGain.gain.setTargetAtTime(quiet ? 0 : scoreLevel() * (1 + .35 * strength), at, quiet ? .045 : .6);
       if (paused || muted || !haunted()) {
         breathingGain.gain.setTargetAtTime(0, at, .15); nextHeartbeat = at + .8;

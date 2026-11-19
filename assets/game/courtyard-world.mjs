@@ -1,5 +1,7 @@
 import * as THREE from './vendor/three.module.js';
 
+import { createCourtyardStorm } from './courtyard-storm.mjs';
+
 export const COURTYARD_APERTURE={minX:-3.525,maxX:-1.875,minY:1.275,maxY:2.925,wallZ:-4.55};
 
 function mergedBoxes(parts){
@@ -84,20 +86,29 @@ export function createCourtyard(root,windowPanel,{textures={}}={}){
   }
   const branchGeometry=new THREE.BufferGeometry();branchGeometry.setAttribute('position',new THREE.Float32BufferAttribute(branches,3));
   const tree=new THREE.LineSegments(branchGeometry,new THREE.LineBasicMaterial({color:0x18211f}));tree.name='Bare courtyard sapling';tree.raycast=()=>{};group.add(tree);
-  const rainPositions=new Float32Array(64*6),rainRest=[];
-  for(let i=0;i<64;i++)rainRest.push({x:-6.8+(i*1.837%8.1),y:(i*1.137%5.2),z:-5.1-(i*.719%6.0),length:.09+(i%5)*.025});
+  const storm=createCourtyardStorm(group,textures.stormSky??null);
+  const dropCount=154;
+  const rainPositions=new Float32Array(dropCount*6),rainRest=[];
+  for(let i=0;i<dropCount;i++)rainRest.push({x:-6.8+(i*1.837%8.1),y:(i*1.137%5.2),z:-5.1-(i*.719%6.0),length:.11+(i%5)*.037});
   const rainGeometry=new THREE.BufferGeometry();rainGeometry.setAttribute('position',new THREE.BufferAttribute(rainPositions,3));
   const rain=new THREE.LineSegments(rainGeometry,new THREE.LineBasicMaterial({color:0x8bacae,transparent:true,opacity:.18,depthWrite:false}));
   rain.name='Rain falling into the courtyard';rain.raycast=()=>{};group.add(rain);
   group.traverse(o=>{o.castShadow=false;o.receiveShadow=false;if(o.isMesh)o.userData.outside=true;});
-  function update(time,{reducedMotion=false}={}){
+  function update(time,{reducedMotion=false,dt=0,weather=null}={}){
     const t=reducedMotion?0:(Number.isFinite(time)?Math.max(0,time):0);
+    // The three-second stare and hand wave use real time on slower phones.
+    const rumble = storm.advance(weather?.elapsed ?? dt, weather, reducedMotion);
+    rain.material.opacity=.20+.57*storm.level;
+    const wind=.16+.075*Math.sin(t*.61);
     for(let i=0;i<rainRest.length;i++){
-      const p=rainRest[i],y=(p.y-t*1.15%5.2+5.2)%5.2;
-      rainPositions.set([p.x,y,p.z,p.x-.015,y-p.length,p.z+.007],i*6);
+      const p=rainRest[i],y=(p.y-t*(1.65+i%3*.23)%5.2+5.2)%5.2;
+      const x=p.x+(5.2-y)*wind;
+      rainGeometry.attributes.position.setXYZ(i*2,x,y,p.z);
+      rainGeometry.attributes.position.setXYZ(i*2+1,x+wind*p.length,y-p.length,p.z+.007);
     }
     rainGeometry.attributes.position.needsUpdate=true;
+    return rumble;
   }
   function reset(){update(0,{reducedMotion:true});}
-  reset();return {group,glass:windowPanel,rain,aperture:{...a},update,reset};
+  reset();return {group,glass:windowPanel,rain,storm,aperture:{...a},update,reset};
 }

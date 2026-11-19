@@ -43,10 +43,12 @@ export async function createHouseTextures() {
   });
   const names = ['wallpaper', 'floor', 'fabric', 'brick'];
   const assets = ['house-wallpaper-v1.webp', 'house-floor-v1.webp', 'house-upholstery-v2.webp', 'house-brick-v2.webp'];
-  const [loaded, kitchenArtwork] = await Promise.all([
+  const [loaded, kitchenArtwork, stormSky] = await Promise.all([
     Promise.allSettled(assets.map(asset => loader.loadAsync(`assets/game/${asset}`))),
     loader.loadAsync('assets/game/kitchen-scream.png').catch(() => null),
+    loader.loadAsync('assets/game/courtyard-lightning.webp').catch(() => null),
   ]);
+  if (stormSky) { stormSky.colorSpace = THREE.SRGBColorSpace; textures.stormSky = stormSky; }
   if (kitchenArtwork) {
     kitchenArtwork.colorSpace = THREE.SRGBColorSpace;
     kitchenArtwork.anisotropy = 4;

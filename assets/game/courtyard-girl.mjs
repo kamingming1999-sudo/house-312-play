@@ -165,15 +165,18 @@ export function createCourtyardGirl(world,{texture=null}={}) {
     }
     position.needsUpdate=true;geometry.computeBoundingSphere();
   }
-  function reset(){encounter='ready';stare=0;wasLooking=false;apparition.visible=false;lastTime=null;pose.time=0;pose.angle=0;root.visible=Boolean(texture);apply();return {...pose};}
-  function update(time,{paused=false,reducedMotion=false}={}){
+  const nightTint=material.color.clone(),flashTint=new THREE.Color().setRGB(1.68,1.93,2.36);
+  function reset(){material.color.copy(nightTint);encounter='ready';stare=0;wasLooking=false;apparition.visible=false;lastTime=null;pose.time=0;pose.angle=0;root.visible=Boolean(texture);apply();return {...pose};}
+  function update(time,{paused=false,reducedMotion=false,lightning=0}={}){
     const safeTime=Number.isFinite(time)?Math.max(0,time):0;
     const dt=lastTime===null?0:Math.min(.1,Math.max(0,safeTime-lastTime));lastTime=safeTime;
-    if(paused||encounter==='behind')return {...pose};
+    if(paused)return {...pose};
+    material.color.copy(nightTint).lerp(flashTint,reducedMotion?0:lightning);
+    if(encounter==='behind')return {...pose};
     if(!reducedMotion)pose.time+=dt;
     const cycle=pose.time%3;
     pose.angle=reducedMotion||cycle>=2.4?0:Math.sin(cycle*5.2)*.19*(1-smooth(2.2,2.4,cycle));
     apply();return {...pose};
   }
-  reset();return {root,figure,apparition,pose,watch,revealFocus,returnToWindow,update,reset};
+  reset();return {root,figure,apparition,pose,get stareSeconds(){return encounter==='ready'?stare:0;},watch,revealFocus,returnToWindow,update,reset};
 }

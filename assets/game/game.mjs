@@ -2,22 +2,22 @@ import * as THREE from './vendor/three.module.js';
 import { labelTexture } from './textures.mjs?v=note18';
 import { createScreen } from './crt.mjs?v=dread2';
 import { upgradeTelevision } from './tv-world.mjs?v=dread2';
-import { createHouseTextures } from './house-textures.mjs?v=art21';
-import { createWorld } from './house-world.mjs?v=listener27';
+import { createHouseTextures } from './house-textures.mjs?v=storm29';
+import { createWorld } from './house-world.mjs?v=storm29';
 import { createHallWorld } from './hall-world.mjs?v=showhome22';
 import {stairHeight} from './attic.mjs?v=atticnote24';
 import {createShowPresentation} from './show-home.mjs?v=listener27';
 import { createHallChapter, resetHallChapter, startHallChapter, hallChapterAction, advanceHallChapter, freeHallMovement, hallTargetLabel, restoreShowCheckpoint, CHECKPOINT_KEY, OUTSIDE_KEY } from './hall-chapter.mjs?v=listener27';
 import { createPaperClue, CORNER_CLUE } from './paper-clue.mjs?v=presence7';
 import { createCornerSpirit } from './corner-spirit.mjs?v=note12';
-import { createCourtyardGirl } from './courtyard-girl.mjs?v=parlor19';
+import { createCourtyardGirl } from './courtyard-girl.mjs?v=storm29';
 import { createCreature } from './roomkeeper.mjs?v=nightmare4';
 import { TIMING, createRound, startRound, startWarning, startScarePreview, pressButton, advance, chooseHall, openDoor, checkHall,
   movePlayer, canStand, angleToward, readPresses, savePresses, joystickVector, scareEndDistance, lungeProgress } from './core.mjs?v=showhome23';
 
 import { findPath, stepPath } from './navigation.mjs?v=showhome23';
 import { createDread, resetDread, updateDread } from './dread.mjs?v=dread2';
-import { createAudio } from './audio.mjs?v=glass15';
+import { createAudio } from './audio.mjs?v=storm29';
 import { createSigns, resetSigns, requestSign, advanceSigns, cancelSigns } from './signs.mjs?v=signals8';
 import { createSignalWorld } from './signal-world.mjs?v=signals8';
 import { createLookControl } from './look-control.mjs?v=touch9';
@@ -521,6 +521,7 @@ function interact() {
     else { sound.click(); toast('The latch is holding. Listen to the television.'); }
   } else if (focused === 'waving-woman') {
     if (windowView && courtyardGirl.returnToWindow()) {
+      world.courtyard.storm.cueNextWave();
       clearMovement();
       cutView(windowView.yaw, windowView.pitch);
       windowView = null;
@@ -814,11 +815,27 @@ function frame(timestamp) {
   world.hallLight.intensity = state.deep ? 1.4 + Math.sin(visualTime * 1.4) * .25 : world.lighting.hall;
   }
   flashlight.intensity = isScare ? 8 : coverMode!=='none' ? .18 : lightEnabled ? 5.5 : 0;
-  courtyardGirl.update(visualTime,{paused:paused||Boolean(panel),reducedMotion});
-  if (world.updateAtmosphere) world.updateAtmosphere(visualTime, { tension: Math.max(dreadFrame.tension,trialView.tension), disturbance, reducedMotion, paused: paused || Boolean(panel) });
+  const weather = started && ['explore', 'hall'].includes(state.phase) ? {
+    elapsed: Math.min(.1, elapsed),
+    angle: courtyardGirl.pose.angle, stare: courtyardGirl.stareSeconds,
+    womanVisible: courtyardGirl.root.visible, behind: courtyardGirl.apparition.visible,
+  } : null;
+  const toWindowX = world.windowPanel.position.x - position.x;
+  const toWindowZ = world.windowPanel.position.z - position.z;
+  const windowDistance = Math.hypot(toWindowX, toWindowZ);
+  const windowRain = weather ? .14 + .86 * Math.max(0, 1 - windowDistance / 8.5) : 0;
+  const frozen = paused || Boolean(panel);
+  const rumble = world.updateAtmosphere(visualTime, {
+    tension: Math.max(dreadFrame.tension, trialView.tension), disturbance, reducedMotion, paused: frozen, weather,
+  });
+  courtyardGirl.update(timestamp / 1000, {paused: frozen, reducedMotion, lightning: world.courtyard.storm.level});
+  if (rumble) {
+    const pan = (Math.cos(yaw) * toWindowX - Math.sin(yaw) * toWindowZ) / Math.max(.1, windowDistance);
+    sound.cue({type: 'thunder', pan: pan * .62, intensity: rumble * (.45 + .55 * windowRain)});
+  }
   signalWorld.update(signFrame,{paused:paused||Boolean(panel),reducedMotion});
   hallWorld.update({...hallView,active:started&&['hallway','ending'].includes(state.phase),watcher:hallView.watcherAmount},visualTime,{paused:paused||Boolean(panel),reducedMotion});
-  if (started && !paused && !panel) sound.update(dt, {tension:Math.max(dreadFrame.tension,trialView.tension,signFrame.meter*.1,hallView.lightDip*.8),moving});
+  if (started && !paused && !panel) sound.update(dt, {tension:Math.max(dreadFrame.tension,trialView.tension,signFrame.meter*.1,hallView.lightDip*.8),moving,windowRain});
   $('hauntVeil').style.opacity = String(isScare||reducedMotion ? 0 : coverMode==='hidden'?.38:disturbance*.35);
   world.button.visible = ['intro', 'explore'].includes(state.phase);
   doorAngle += ((state.doorOpen ? 1.48 : 0) - doorAngle) * Math.min(1, dt * 3);

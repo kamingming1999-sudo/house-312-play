@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
 import { createWorld as createRoom } from './world.mjs?v=tvtip20';
 import { createHearth } from './hearth-world.mjs?v=hearth20';
-import { createCourtyard } from './courtyard-world.mjs?v=wave10';
+import { createCourtyard } from './courtyard-world.mjs?v=storm29';
 import {buildAttic} from './attic.mjs?v=atticnote24';
 import { dressParlorWindow } from './parlor-window.mjs';
 
@@ -399,7 +399,7 @@ export function createWorld(scene, options = {}) {
   world.hearth=hearth;world.courtyard=courtyard;
   world.atmosphere = {lampShade,picture,cupboard,rain,cobweb,hearth,courtyard};
   let atmosphereTime=0,lastTime=null;
-  world.updateAtmosphere = (time,{tension=0,disturbance=0,reducedMotion=false,paused=false}={}) => {
+  world.updateAtmosphere = (time,{tension=0,disturbance=0,reducedMotion=false,paused=false,weather=null}={}) => {
     const safeTime=Number.isFinite(time)?time:0;
     const dt=lastTime===null?0:Math.min(.1,Math.max(0,safeTime-lastTime)); lastTime=safeTime;
     if (paused) return;
@@ -414,7 +414,10 @@ export function createWorld(scene, options = {}) {
     world.dust.position.y=motion*Math.sin(t*.19)*.025;
     world.dust.material.opacity=.2+stress*.07;
     if (textures.rain) textures.rain.offset.y=motion*t*.021%1;
-    hearth.update(t,{reducedMotion});courtyard.update(t,{reducedMotion});
+    hearth.update(t,{reducedMotion});
+    const rumble=courtyard.update(t,{dt,weather,reducedMotion});
+    world.moon.intensity=3.4+5.8*courtyard.storm.level;
+    return rumble;
   };
   world.resetAtmosphere=()=>{
     atmosphereTime=0;lastTime=null;
