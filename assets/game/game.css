@@ -33,6 +33,7 @@ html,body{height:100dvh;overscroll-behavior:none}
 .panel{max-width:490px}.panel h1{font-size:clamp(42px,12vw,70px)}.panel h2{font-size:clamp(38px,10vw,61px)}.panel p{font-size:14px}.panel .lede{font-size:17px}.panel-actions{gap:11px}.primary,.secondary{min-height:48px;touch-action:manipulation}.panel .fine{display:flex;flex-wrap:wrap;gap:10px 16px}.fine a{margin:0}
 .mobile-controls{position:fixed;inset:0;z-index:4;pointer-events:none}
 .move-stick{position:absolute;left:max(19px,env(safe-area-inset-left));bottom:calc(25px + env(safe-area-inset-bottom));width:132px;height:132px;border:1px solid #c3c8a55c;border-radius:50%;background:radial-gradient(circle,#213129a3,#101d17a0);touch-action:none;pointer-events:auto;-webkit-user-select:none;user-select:none;box-shadow:0 5px 30px #0004}
+.move-stick>span{pointer-events:none}
 .stick-ring{position:absolute;inset:15px;border:1px solid #b5bca225;border-radius:50%}.stick-thumb{position:absolute;top:50%;left:50%;width:51px;height:51px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle at 35% 30%,#98a18d,#465b47 85%);border:1px solid #c9ceac87;box-shadow:0 4px 14px #0007}
 .stick-label{position:absolute;left:0;right:0;bottom:9px;text-align:center;font-size:8px;letter-spacing:.18em;color:#c0c9ab;pointer-events:none}
 .look-hint{position:absolute;right:max(23px,env(safe-area-inset-right));bottom:calc(163px + env(safe-area-inset-bottom));text-align:center;font-size:9px;line-height:1.8;letter-spacing:.1em;color:#b7c3a7;text-shadow:0 2px 7px #000}
@@ -125,3 +126,11 @@ body[data-phase="hallway"] .decision-status{font-size:.77rem;color:#e2cf99}
 #showCaption{white-space:pre-line}
 
 .panel .attic-message{font:italic clamp(1.65rem,6vw,2.4rem)/1.35 Georgia,serif}
+
+/* Leave the left thumb free while a chapter action is available. */
+body:has(#moveStick:not([hidden])) .show-dock{
+  left:auto;right:max(.65rem,env(safe-area-inset-right));transform:none;
+  width:calc(100% - max(165px,env(safe-area-inset-left) + 151px));max-width:39rem;
+}
+body:has(#moveStick:not([hidden])) .stop-moving{left:auto;right:max(12px,env(safe-area-inset-right));bottom:calc(106px + env(safe-area-inset-bottom));transform:none}
+body[data-phase="hallway"]:has(#moveStick:not([hidden])) .stop-moving{bottom:auto;top:23%}

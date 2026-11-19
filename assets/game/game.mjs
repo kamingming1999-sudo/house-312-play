@@ -27,6 +27,7 @@ import { createHideWorld } from './hide-world.mjs?v=presence7';
 const $ = id => document.getElementById(id);
 const canvas = $('gameCanvas');
 const coarse = matchMedia('(pointer: coarse)').matches;
+const touchMovement = coarse || matchMedia('(any-pointer: coarse)').matches;
 const phoneFirst = true;
 const WALK_ZOOM = .5, REVEAL_ZOOM = 1;
 const requestedPreview = new URLSearchParams(location.search).has('preview');
@@ -543,6 +544,10 @@ function interact() {
 }
 
 $('enterRoom').disabled = false; $('enterRoom').textContent = requestedPreview ? 'Play jump scare' : requestedChapter ? 'Start Chapter II' : 'Start game';
+if(touchMovement){
+  $('lookHint').innerHTML='LEFT THUMB TO WALK<br>SWIPE TO LOOK';
+  $('introCopy').textContent='Move with the joystick or tap the floor. Swipe with your other thumb to look around.';
+}
 if(requestedChapter&&!requestedPreview){$('introTitle').innerHTML='The Show<br>Home.';$('introCopy').textContent='Chapter II. The telephone is ringing in an empty kitchen. Pick it up.';}
 $('showRetry').addEventListener('click',resumeLesson);
 $('showContinue').hidden=!requestedChapter||!restoreShowCheckpoint(createHallChapter(),storedLesson());
@@ -602,7 +607,7 @@ function look(dx, dy, options = {}) {
 document.addEventListener('mousemove', event => { if (document.pointerLockElement === canvas) look(event.movementX, event.movementY); });
 canvas.addEventListener('pointerdown', event => {
   preventGameplayScroll(event);
-  if(!canLook()||event.button>0||event.isPrimary===false)return;
+  if(!canLook()||event.button>0||(event.isPrimary===false && !(event.pointerType==='touch' && stickPointer!==null)))return;
   if (document.pointerLockElement === canvas) return;
   if (drag) return;
   cancelLook();
@@ -678,24 +683,35 @@ function clearMovement() {
   if(captured!==undefined){try{canvas.releasePointerCapture?.(captured);}catch{/* Already released by the browser. */}}
   cancelLook();
   stopWalking();
-  keys.clear(); moveAxis.x = 0; moveAxis.y = 0; stickPointer = null;
-  if ($('stickThumb')) $('stickThumb').style.transform = 'translate(-50%,-50%)';
+  keys.clear(); resetStick();
 }
 $('stopMoving').addEventListener('click', () => { if(coverMode==='hidden')requestLeaveCover();else{stopWalking();toast('Stopped.',1);} });
 const stick = $('moveStick');
+function movementAllowed() {
+  return started && !paused && !panel && !windowView && coverMode==='none'
+    && ['explore','hall','hallway'].includes(state.phase)
+    && (state.phase!=='hallway'||freeHallMovement(hallChapter));
+}
+function resetStick() {
+  const pointer=stickPointer;
+  stickPointer=null;moveAxis.x=0;moveAxis.y=0;
+  const pad=$('moveStick');
+  if(pointer!==null && pad.hasPointerCapture?.(pointer))pad.releasePointerCapture(pointer);
+  $('stickThumb').style.transform='translate(-50%,-50%)';
+}
 function updateStick(event) {
   const rect = stick.getBoundingClientRect();
   const value = joystickVector(event.clientX - rect.left - rect.width / 2, event.clientY - rect.top - rect.height / 2, rect.width * .34);
   moveAxis.x = value.x; moveAxis.y = value.y;
-  $('stickThumb').style.transform = `translate(calc(-50% + ${value.x * 35}px),calc(-50% + ${value.y * 35}px))`;
+  $('stickThumb').style.transform = `translate(calc(-50% + ${value.x * rect.width * .285}px),calc(-50% + ${value.y * rect.width * .285}px))`;
 }
 stick.addEventListener('pointerdown', event => {
-  if (stickPointer !== null) return;
+  if (stickPointer !== null || !touchMovement || !movementAllowed()) return;
   event.preventDefault(); stopWalking(); stickPointer = event.pointerId; stick.setPointerCapture(event.pointerId); updateStick(event);
 });
 stick.addEventListener('pointermove', event => { if (event.pointerId === stickPointer) updateStick(event); });
 for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) stick.addEventListener(type, event => {
-  if (event.pointerId === stickPointer) { stickPointer = null; moveAxis.x = moveAxis.y = 0; $('stickThumb').style.transform = 'translate(-50%,-50%)'; }
+  if (event.pointerId === stickPointer) resetStick();
 });
 function resize() {
   const width = window.innerWidth, height = window.innerHeight;
@@ -724,7 +740,7 @@ function frame(timestamp) {
   for(const event of signFrame.events){if(event.type==='voice')sound.radioReply?.();else sound.cue(event);}
   dreadFrame = updateDread(dread, dt, { ...state, paused: state.phase==='hallway' || paused || Boolean(panel) || Boolean(windowView) || !started || signFrame.busy || trials.status!=='idle'&&state.phase==='explore', reducedMotion });
   for (const event of dreadFrame.events) sound.cue(event);
-  if (started && !paused && !panel && !windowView && coverMode==='none' && (state.phase!=='hallway'||freeHallMovement(hallChapter)) && ['explore', 'hall', 'hallway'].includes(state.phase)) {
+  if (movementAllowed()) {
     const forward = Number(keys.has('KeyW') || keys.has('ArrowUp')) - Number(keys.has('KeyS') || keys.has('ArrowDown')) - moveAxis.y;
     const sideways = Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft')) + moveAxis.x;
     const magnitude = Math.hypot(forward, sideways);
@@ -816,6 +832,8 @@ function frame(timestamp) {
   const active = started && !paused && !panel && state.phase === 'explore';
   if (document.body.dataset.phase !== state.phase) document.body.dataset.phase = state.phase;
   document.body.dataset.inputMode=gameOwnsGestures()?'game':'menu';
+  stick.hidden=!touchMovement||!movementAllowed();
+  if(stick.hidden && stickPointer!==null)resetStick();
   $('mobileControls').hidden = !started || paused || Boolean(panel) || !['explore', 'hall', 'hallway'].includes(state.phase);
   updateFocus(elapsed);
   document.body.dataset.windowScare = String(Boolean(windowView));

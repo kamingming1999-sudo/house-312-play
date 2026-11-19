@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#101512">
   <title>House 312 | Phone Horror</title>
   <meta name="description" content="Explore a decaying country house in first person. A television warns you not to press the red button. The choice is yours.">
-  <link rel="stylesheet" href="assets/game/game.css?v=listener27">
+  <link rel="stylesheet" href="assets/game/game.css?v=stick28">
 </head>
 <body>
   <canvas id="gameCanvas" tabindex="0" aria-label="First-person view of house 312"></canvas>
@@ -32,9 +32,9 @@
   <p class="toast" id="toast" role="status" aria-live="polite" hidden></p>
   <div class="controls"><span><kbd>W A S D</kbd> Move</span><span>Mouse / drag to look</span><span><kbd>E</kbd> Interact</span><span><kbd>F</kbd> Flashlight</span><span class="hint">Esc to pause</span></div>
   <div class="mobile-controls" id="mobileControls" hidden>
-    <div class="move-stick" id="moveStick" hidden role="group" aria-label="Move with your left thumb"><span class="stick-ring" aria-hidden="true"></span><span class="stick-thumb" id="stickThumb" aria-hidden="true"></span><span class="stick-label" aria-hidden="true">MOVE</span></div>
+    <div class="move-stick" id="moveStick" hidden role="group" aria-label="Movement joystick"><span class="stick-ring" aria-hidden="true"></span><span class="stick-thumb" id="stickThumb" aria-hidden="true"></span><span class="stick-label" aria-hidden="true">MOVE</span></div>
     <button type="button" class="stop-moving" id="stopMoving" hidden>Stop walking</button>
-    <span class="look-hint" aria-hidden="true">TAP FLOOR TO WALK<br>DRAG TO LOOK</span>
+    <span id="lookHint" class="look-hint" aria-hidden="true">TAP FLOOR TO WALK<br>DRAG TO LOOK</span>
   </div>
   <p class="decision-status" id="decisionStatus" aria-live="polite"></p>
   <div class="blackout" id="blackout" aria-hidden="true"></div>
@@ -117,7 +117,7 @@
     </section>
   </main>
   <script type="module">
-    import('./assets/game/game.mjs?v=listener27').catch(error => {
+    import('./assets/game/game.mjs?v=stick28').catch(error => {
       console.error('Room 312 could not start:', error);
       document.querySelectorAll('[data-panel]').forEach(panel => { panel.hidden = panel.dataset.panel !== 'error'; });
       document.getElementById('overlay').hidden = false;
