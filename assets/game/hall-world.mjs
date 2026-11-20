@@ -1,4 +1,5 @@
 import * as THREE from './vendor/three.module.js';
+import {createYardTomb} from './yard-tomb.mjs';
 
 const noRaycast = () => {};
 const unit = value => Number.isFinite(value) ? THREE.MathUtils.clamp(value, 0, 1) : 0;
@@ -107,7 +108,11 @@ export function createHallWorld(world, { texture = null, labelTexture } = {}) {
   const glow=new THREE.MeshBasicMaterial({color:0xffcc76});
   box('Warm keyhole slit',[.017,.045,.014],[1.21,1.03,-.17],glow,world.frontHinge).userData.interaction='keyhole';
   targetBox('keyhole',[.19,.26,.02],[1.21,1.03,-.18],world.frontHinge);
+  const tomb=createYardTomb({THREE,labelTexture});
+  tomb.position.set(-.36,-.045,15.94);tomb.rotation.y=Math.PI-.12;root.add(tomb);
+  const gravePoint=tomb.localToWorld(new THREE.Vector3(0,.52,.066));
   const targets={
+    'yard-tomb':{point:gravePoint},
     painting:{point:new THREE.Vector3(-4.025,2.15,7.35),approach:{x:-2.66,z:7.38}},
     keyhole:{point:new THREE.Vector3(.485,1.03,11.36),approach:{x:.12,z:10.32}},
     'hall-phone':{point:new THREE.Vector3(-3.575,1.055,6.15),approach:{x:-2.65,z:6.4}},
@@ -117,7 +122,7 @@ export function createHallWorld(world, { texture = null, labelTexture } = {}) {
   const lights=[world.hallLight,world.kitchenLight].filter(Boolean).map(light=>({light,intensity:light.intensity}));
   let lastTime=null;
   function reset() {
-    lastTime=null;root.visible=true;keyBundle.visible=true;
+    lastTime=null;root.visible=true;keyBundle.visible=true;tomb.visible=false;
     handset.position.set(-.065,.12,0);handset.rotation.set(0,0,0);
     watcher.visible=false;watcher.material.opacity=0;
     if(world.frontHinge)world.frontHinge.rotation.y=0;
@@ -128,6 +133,7 @@ export function createHallWorld(world, { texture = null, labelTexture } = {}) {
     const dt=lastTime===null?0:Math.min(.1,Math.max(0,now-lastTime));lastTime=now;
     if(paused)return;
     root.visible=view.active!==false;
+    tomb.visible=['porch','crossing','outside','quiet','graveyard','escaped'].includes(view.stage);
     keyBundle.visible=!view.keyTaken&&!view.handVisible;
     if(typeof view.phoneUp==='boolean'){
       handset.position.set(view.phoneUp?.12:-.065,view.phoneUp?.34:.12,0);

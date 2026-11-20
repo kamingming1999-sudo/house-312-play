@@ -1,23 +1,22 @@
 import * as THREE from './vendor/three.module.js';
-import {createShowFigures} from './show-figures.mjs?v=listener27';
+import {createShowFigures} from './show-figures.mjs?v=fold30';
 import {createPaintingMirror} from './painting-mirror.mjs';
-import {createShowAudio} from './show-audio.mjs';
-import {hallTargetLabel,COPY_DELAY,KEYHOLE_HOLD} from './hall-chapter.mjs?v=listener27';
+import {createShowAudio} from './show-audio.mjs?v=fold30';
+import {hallTargetLabel,COPY_DELAY,KEYHOLE_HOLD} from './hall-chapter.mjs?v=fold30';
 
 const clamp=n=>Math.max(0,Math.min(1,n));
 const ease=n=>{const t=clamp(n);return t*t*(3-2*t);};
 const alias={'retained-line':'player-line','keyhole-cough':'echo-cough','echo-reach':'reach','test-cover':'cloth','test-clear':'cloth','latch-warning':'unlock','projector':'cloth','film-drag':'paper-cover'};
-export function createShowPresentation({world,camera,renderer,girl,art,grime,element,act}){
-  const audio=createShowAudio(),figures=createShowFigures(world,{art});
+export function createShowPresentation({world,camera,renderer,girl,art,grime,handSkin,foldSkin,foldGeometry,element,act}){
+  const audio=createShowAudio(),figures=createShowFigures(world,{art,handSkin,foldSkin,foldGeometry});
   figures.attachFirstPerson(camera);
   const mirror=createPaintingMirror({world,camera,renderer,girl,art,grime,figures});
-  const latchHand=figures.hand.clone(true);
+  const latchHand=figures.makeLatchHand(world.frontHinge);
   latchHand.name='Fingers on the other side of the latch';latchHand.visible=false;
   latchHand.position.set(1.08,1.03,-.142);latchHand.rotation.x=-Math.PI/2;
   latchHand.getObjectByName('Spare key gripped in the hand').visible=false;
   const latchWrist=latchHand.getObjectByName('Wrist stretching from the slit');
   latchHand.traverse(n=>{n.raycast=()=>{};});
-  world.frontHinge.add(latchHand);
   const a=figures.anchors,target=new THREE.Vector3();
   const returnToPainting=new THREE.CatmullRomCurve3([new THREE.Vector3(.60,1.62,9.85),new THREE.Vector3(.19,1.75,7.48),new THREE.Vector3(-1.45,1.92,7.12),a.replayCamera]);
   const hud=element('showHUD'),lens=element('showLens'),fold=element('showFold'),tape=element('showTape'),caption=element('showCaption');
@@ -33,7 +32,8 @@ export function createShowPresentation({world,camera,renderer,girl,art,grime,ele
       if(Math.hypot(p.x+3.6,p.z-6.15)<1.85)add('hall-phone');
       if(v.phoneAnswered&&Math.hypot(p.x+3.42,p.z-8.48)<1.80)add('hall-key');
       if(Math.hypot(p.x+4.03,p.z-7.35)<1.8){
-        add('painting');if(v.keyTaken)add('cover-painting');
+        add('painting');
+        if(v.hasCloth)add('cover-painting');
       }
     }
     if(v.stage==='unlocked'&&door)add('keyhole');
@@ -84,7 +84,7 @@ export function createShowPresentation({world,camera,renderer,girl,art,grime,ele
     }
     if(v.stage==='mimic'){
       camera.position.y-=.67*v.playerPose.crouch;
-      if(v.blindfold||v.playerPose.raise)pov={reach:0,raise:Math.max(v.playerPose.raise,v.blindfold*.5),cloth:v.blindfold*.5};
+      if(v.blindfold||v.playerPose.raise)pov={reach:0,raise:Math.max(v.playerPose.raise,v.blindfold*.5),cloth:v.blindfold*.5,demonstrating:true};
     }
     if(v.stage==='opening'){
       pov={reach:ease(v.stageTime/.6),raise:0,cloth:0};

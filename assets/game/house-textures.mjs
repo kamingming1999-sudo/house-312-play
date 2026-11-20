@@ -43,11 +43,19 @@ export async function createHouseTextures() {
   });
   const names = ['wallpaper', 'floor', 'fabric', 'brick'];
   const assets = ['house-wallpaper-v1.webp', 'house-floor-v1.webp', 'house-upholstery-v2.webp', 'house-brick-v2.webp'];
-  const [loaded, kitchenArtwork, stormSky] = await Promise.all([
+  const [loaded, kitchenArtwork, stormSky, handSkin, foldSkin, foldGeometry, yardGarden, yardEarth] = await Promise.all([
     Promise.allSettled(assets.map(asset => loader.loadAsync(`assets/game/${asset}`))),
     loader.loadAsync('assets/game/kitchen-scream.png').catch(() => null),
     loader.loadAsync('assets/game/courtyard-lightning.webp').catch(() => null),
+    loader.loadAsync('assets/game/hand-detail.webp').catch(() => null),
+    loader.loadAsync('assets/game/folded-body.webp').catch(() => null),
+    new THREE.BufferGeometryLoader().loadAsync('assets/game/folded-body.json').catch(() => null),
+    loader.loadAsync('assets/game/yard-garden.webp').catch(() => null),
+    loader.loadAsync('assets/game/yard-earth.webp').catch(() => null),
   ]);
+  Object.assign(textures,{handSkin,foldSkin,foldGeometry});
+  if (yardGarden) { yardGarden.colorSpace=THREE.SRGBColorSpace; textures.yardGarden=yardGarden; }
+  if (yardEarth) textures.yardEarth=prepare(yardEarth,[12,7]);
   if (stormSky) { stormSky.colorSpace = THREE.SRGBColorSpace; textures.stormSky = stormSky; }
   if (kitchenArtwork) {
     kitchenArtwork.colorSpace = THREE.SRGBColorSpace;

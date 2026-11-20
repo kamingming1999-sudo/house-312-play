@@ -34,6 +34,7 @@ export const SHOW_AUDIO_CUES = {
   'door-open': [54.58171, 0.9],
   'door-close': [55.60171, 0.74],
   'outside': [56.46171, 8.25],
+  'mirror-scream': [64.896, 1.29],
 };
 
 const spoken = new Set([
@@ -41,8 +42,8 @@ const spoken = new Set([
   'practice-3', 'dont-cover', 'show-door', 'stand-still', 'third-lesson', 'like-you',
   'no-need', 'cant-see', 'replacement',
 ]);
-const pan = {'step-echo': -.48, 'knock-1': .24, 'knock-2': -.48, 'echo-hangup': -.22};
-const spriteUrl = new URL('./show-home-audio.mp3', import.meta.url);
+const pan = {'step-echo': -.48, 'knock-1': .24, 'knock-2': -.48, 'echo-hangup': -.22, 'mirror-scream': .26};
+const spriteUrl = new URL('./show-home-audio.mp3?v=fold30', import.meta.url);
 
 /** resume() belongs in an input gesture. The chapter clock is the single owner
  * of narrative timing. Audio may start late or be unavailable without changing it. */

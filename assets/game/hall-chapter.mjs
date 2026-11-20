@@ -2,6 +2,7 @@
 // excerpts from this run. The playback cursor never dispatches recorded input.
 export const COPY_DELAY = .72;
 export const KEYHOLE_HOLD = 3.2;
+const MIRROR_SCREAM_AT = .58;
 export const CHECKPOINT_KEY = 'house312.showhome.rehearsal.v1';
 export const OUTSIDE_KEY = 'house312.showhome.porch.v1';
 const clamp = (n,a,b) => Math.max(a,Math.min(b,n));
@@ -205,6 +206,9 @@ export function hallChapterAction(s,id) {
   case 'shut':
     if(s.stage!=='outside')return blocked('');
     stage(s,'quiet');cue(s,'door-close');cue(s,'knock-recording',3.4);cue(s,'retained-line',5.8);return accepted;
+  case 'yard-tomb':
+    if(s.stage!=='graveyard')return blocked('');
+    stage(s,'escaped');return accepted;
   default:return blocked('');
   }
 }
@@ -214,7 +218,7 @@ const objectives={
   hand:'Try reaching for the key. Watch the fingers.',travel:'Use the brass key at the front door.',
   latch:'Your hand is still on the closed door.',unlocked:'Warm light leaks through the keyhole. Look inside.',replay:'',imprint:'',reflection:'Tilt your view. Watch the other head. Then stand up.',
   rising:'',mimic:'The house is waiting for one last demonstration.',opening:'',porch:'The porch is open. Step outside.',
-  crossing:'',outside:'Close the door behind you.',quiet:'',replaced:'',escaped:'The rain is real.',trapped:'There is one person in the house.',
+  crossing:'',outside:'Close the door behind you.',quiet:'',graveyard:'Touch the gravestone beside the porch.',replaced:'',escaped:'The rain is real.',trapped:'There is one person in the house.',
 };
 export function showActions(s){
   if(s.mirrorOpen)return [['replace-painting','Put the painting back']];
@@ -233,18 +237,20 @@ export function showActions(s){
   return [];
 }
 export function hallTargetLabel(s,id){
+  if(id==='yard-tomb')return 'Touch the gravestone';
   if(id==='keyhole')return 'Look through the keyhole';
   if(id==='painting')return 'Lift the painting';
-  if(id==='cover-painting')return s.eyeCover==='direct'?'Lift the cloth off the frame':s.hasCloth?'Cover the painted eyes':'Inspect the painting';
+  if(id==='cover-painting')return s.eyeCover==='direct'?'Lift the cloth off the frame':'Cover the painted eyes';
   if(id==='hall-key')return s.keyTaken?'Inspect the empty hand':'Lift the folded cloth';
   if(id==='hall-phone')return s.phoneAnswered?'Listen again':'Answer the telephone';
   return s.stage==='mimic'?'Demonstrate opening the door':s.stage==='unlocked'?'Touch the handle':s.doorUnlocked?'Door unlocked':'Try the lock';
 }
 export const freeHallMovement=s=>!s.mirrorOpen&&['search','travel','unlocked','mimic'].includes(s.stage)&&s.clothLevel===0;
 function view(s,events=[]){
-  const isCopy=['reflection','rising','mimic','opening','porch','crossing','outside','quiet','escaped','replaced','trapped'].includes(s.stage);
+  const isCopy=['reflection','rising','mimic','opening','porch','crossing','outside','quiet','graveyard','escaped','replaced','trapped'].includes(s.stage);
   return {stage:s.stage,mirrorOpen:s.mirrorOpen,mirrorTime:s.mirrorTime,elapsed:s.elapsed,stageTime:s.stageTime,events,objective:s.mirrorOpen?'You are holding the painting.':s.eyeCover&&s.stage==='mimic'?'Its eyes are covered. Open the front door.':s.stage==='search'&&s.phoneAnswered?'Lift the folded cloth at the far end of the counter.':objectives[s.stage],
-    inventory:s.hasCloth?'Brass key · '+(s.eyeCover==='direct'?'Cloth on painting':'Key cloth'):'',caption:s.mirrorOpen?'':[s.voiceUntil>s.elapsed?s.voiceCaption:'',s.captionUntil>s.elapsed?s.caption:''].filter(Boolean).join('\n'),
+    hasCloth:s.hasCloth,inventory:s.hasCloth?'Brass key · '+(s.eyeCover==='direct'?'Cloth on painting':'Key cloth'):'',
+    caption:s.mirrorOpen?(s.mirrorTime>=MIRROR_SCREAM_AT&&s.mirrorTime<MIRROR_SCREAM_AT+1.7?'[A woman screams just behind your shoulder.]':''):[s.voiceUntil>s.elapsed?s.voiceCaption:'',s.captionUntil>s.elapsed?s.caption:''].filter(Boolean).join('\n'),
     gaitBeat:s.gaitBeat,doorAmount:s.doorAmount,frontOpen:s.doorAmount>.99,phoneAnswered:s.phoneAnswered,phoneUp:s.phoneUp,keyTaken:s.keyTaken,
     handVisible:s.stage==='hand'||s.keyTaken,handReach:s.handPose,coverEye:s.eyeCover==='direct'||coveredDuringTest(s)?1:0,
     bodyVisible:isCopy&&s.stage!=='reflection'&&s.eyeCover!=='direct',rise:s.eyeCover==='direct'?0:(s.copied.stand||0),
@@ -256,7 +262,12 @@ function view(s,events=[]){
 export function advanceHallChapter(s,dt,ctx={}){
   if(ctx.active===false||ctx.paused||s.stage==='dormant')return view(s);
   const seconds=Number.isFinite(dt)?clamp(dt,0,.25):0;
-  if(s.mirrorOpen){s.mirrorTime+=seconds;return view(s);}
+  if(s.mirrorOpen){
+    const before=s.mirrorTime;
+    s.mirrorTime+=seconds;
+    const scream=before<MIRROR_SCREAM_AT && s.mirrorTime>=MIRROR_SCREAM_AT;
+    return view(s,scream?[{type:'sound',id:'mirror-scream'}]:[]);
+  }
   s.elapsed+=seconds;s.stageTime+=seconds;
   const player=ctx.player??s.pose;
   if(s.lastPosition&&freeHallMovement(s)){
@@ -268,7 +279,8 @@ export function advanceHallChapter(s,dt,ctx={}){
     }
   }
   s.lastPosition={x:player.x,z:player.z};
-  s.pose={x:player.x,z:player.z,yaw:ctx.yaw??s.pose.yaw,pitch:ctx.pitch??s.pose.pitch,crouch:+s.crouched,raise:+s.raised,reach:s.reach,phone:+s.phoneUp,stride:s.stride};
+  const handLift=s.pose.raise+clamp(Number(s.raised)-s.pose.raise,-seconds*6.5,seconds*6.5);
+  s.pose={x:player.x,z:player.z,yaw:ctx.yaw??s.pose.yaw,pitch:ctx.pitch??s.pose.pitch,crouch:+s.crouched,raise:handLift,reach:s.reach,phone:+s.phoneUp,stride:s.stride};
   if(!s.doorUnlocked&&s.clips.length<3)record(s);
   if(s.stage==='search'&&!s.phoneAnswered&&s.elapsed>=s.nextRing){s.nextRing=s.elapsed+6.5;cue(s,'ring');}
   if(!coveredDuringTest(s)&&!s.eyeCover)s.handPose+=(s.reach-s.handPose)*Math.min(1,seconds*8);
@@ -307,7 +319,7 @@ export function advanceHallChapter(s,dt,ctx={}){
     }
   }
   if(s.stage==='crossing'&&s.stageTime>=2.5)stage(s,'outside');
-  if(s.stage==='quiet'){s.doorAmount=1-amount(s.stageTime/.85);if(s.stageTime>=10.4)stage(s,'escaped');}
+  if(s.stage==='quiet'){s.doorAmount=1-amount(s.stageTime/.85);if(s.stageTime>=10.4)stage(s,'graveyard');}
   if(s.stage==='replaced'&&s.stageTime>=13)stage(s,'trapped');
   const events=s.notifications.splice(0);
   s.pending=s.pending.filter(e=>{

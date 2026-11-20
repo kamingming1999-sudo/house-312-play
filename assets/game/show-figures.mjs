@@ -1,5 +1,7 @@
 import * as THREE from './vendor/three.module.js';
-import {createOccupant} from './occupant-rig.mjs';
+import {createOccupant} from './occupant-rig.mjs?v=fold30';
+import {createDetailedHand} from './detailed-hand.mjs';
+import {createFoldedBody} from './folded-house.mjs';
 
 const clamp = value => THREE.MathUtils.clamp(Number.isFinite(value) ? value : 0, 0, 1);
 const lerp = THREE.MathUtils.lerp;
@@ -100,16 +102,19 @@ function makeDouble(parent,m){
   return createOccupant(parent,receiver);
 }
 
-function makeCounterHand(root,m,double) {
+function makeCounterHand(root,m,skin) {
   const crevice=group(root,'Split in the countertop',[-3.55,.934,8.48]);
   const slot=oval(crevice,'Black slit',[.032,.004,.153],[0,.002,0],m.dark);
   slot.rotation.y=-.2;
   const hinge=group(crevice,'Wrist stretching from the slit',[.012,.018,0]);
-  const wrist=beam(hinge,'Narrow wrist',[0,-.01,0],[.054,.092,0],.023,.026,m.skin,true);
-  const fore=group(hinge,'Knuckles curling around the key',[.055,.088,0]);
-  const palm=double.makeForearm({handOnly:true});fore.add(palm);
-  palm.rotation.z=Math.PI*.60; palm.rotation.x=-.27;
-  const key=group(fore,'Spare key gripped in the hand',[.095,-.004,.022]);
+  const fore=group(hinge,'Knuckles curling around the key',[.006,.013,0]);
+  const palm=createDetailedHand(skin);
+  fore.add(palm.root);
+  fore.rotation.order='YXZ';
+  fore.rotation.set(-.39,.40,-1.02);
+  palm.pose(.82);
+  const key=group(fore,'Spare key gripped in the hand',[-.021,.071,-.039]);
+  key.rotation.set(.09,.4,-1.32);
   const bow=ring(key,'Brass key bow',.028,.006,[0,.012,0],m.brass);
   bow.rotation.y=.22;
   box(key,'Key shaft',[.012,.074,.010],[.006,-.048,0],m.brass);
@@ -118,10 +123,10 @@ function makeCounterHand(root,m,double) {
     crevice.visible=visible;
     if(!visible)return;
     const t=clamp(reach);
-    hinge.rotation.z=.36-t*.74;
-    hinge.position.y=.018+t*.020;
-    wrist.scale.x=.023-t*.003;
-    fore.rotation.y=-.12+t*.23;
+    hinge.rotation.z=.32-t*.38;
+    hinge.position.set(.012,-.015+t*.011,-t*.018);
+    fore.rotation.y=.40+t*.42;
+    palm.pose(.82-.13*t);
     key.visible=!taken;
   }
   return {root:crevice,update};
@@ -301,11 +306,16 @@ function makeBody(parent,m,art) {
   return {body,head,patch,update};
 }
 
-function makeFirstPerson(camera,m,double) {
+function makeFirstPerson(camera,m,double,skin) {
   const root=group(camera,'Occupant sleeves in first person');
   const arm=group(root,'Ochre stitched sleeve');
-  arm.add(double.makeForearm());
-  const cloth=group(arm,'Cloth gripped in front of the face',[.01,-.168,.02]);
+  const hand=createDetailedHand(skin);
+  const handMaterial=hand.root.getObjectByName('Photographed palm, knuckles and nails').material;
+  arm.add(hand.root);
+  const sleeve=double.makeForearm({sleeveOnly:true});
+  sleeve.name='Sleeve ending just over the wrist';sleeve.rotation.z=Math.PI;sleeve.position.y=-.106;
+  arm.add(sleeve);
+  const cloth=group(arm,'Cloth gripped in front of the face',[-.014,.07,-.037]);
   const fabric=sheet(cloth,'Cloth in hand',.26,.24,m.cloth);fabric.rotation.x=-.94;
   batchRigidParts(root);
   function pose(p) {
@@ -313,17 +323,21 @@ function makeFirstPerson(camera,m,double) {
     if(!p)return;
     const reach=clamp(p.reach),lift=clamp(p.raise),showCloth=Boolean(p.cloth);
     const fov=2*Math.tan(THREE.MathUtils.degToRad(camera.fov)*.5)/(camera.zoom||1);
-    const height=.40*fov,width=height*camera.aspect;
-    const size=Math.min(1,height/.58,width/.32);
+    const height=.37*fov,width=height*camera.aspect;
+    const size=Math.min(height*1.66,width*2.50);
     root.scale.setScalar(size);
-    arm.position.set(((.39-.16*reach-.27*lift)*width)/size,(-.43+.09*reach+.34*lift)*height/size,-.40/size);
-    arm.rotation.set(lerp(-1.04,-2.38,lift),.13,2.62-reach*.24-lift*.10);
+    if(skin)handMaterial.color.setScalar(lerp(.18,.88,THREE.MathUtils.smoothstep(camera.aspect,.52,1.38)));
+    const low=p.demonstrating?-.80:-.48;
+    arm.position.set((.31-reach*.085-lift*.035)*width/size,(low+reach*.19+lift*(-.23-low))*height/size,-.37/size);
+    arm.rotation.order='YXZ';
+    arm.rotation.set(lerp(-.64,-.12,lift)-reach*.48,lerp(-.50,-.25,lift),lerp(.46,.15,lift)+reach*.25);
+    hand.pose(showCloth?.65:lerp(.21,.045,Math.max(reach,lift)));
     cloth.visible=showCloth;
   }
   return {root,pose};
 }
 
-export function createShowFigures(world,{art=null}={}) {
+export function createShowFigures(world,{art=null,handSkin=null,foldSkin=null,foldGeometry=null}={}) {
   const root=group(world.root,'The Show Home: physical witnesses');
   const sourceArt=world.root.getObjectByName('The Scream in the kitchen window frame');
   const picture=art??sourceArt?.material?.map??null;
@@ -337,7 +351,8 @@ export function createShowFigures(world,{art=null}={}) {
     cloth:surface(0x9c9682,{side:THREE.DoubleSide}),thread:surface(0x675837),skin:surface(0x926e56)
   };
   const double=makeDouble(root,m);
-  const hand=makeCounterHand(root,m,double),monster=makeBody(root,m,picture);
+  const hand=makeCounterHand(root,m,handSkin);
+  const monster=foldGeometry?createFoldedBody(root,foldGeometry,foldSkin,picture,m.wallpaper):makeBody(root,m,picture);
   const originalCover=group(root,'Kitchen cloth caught on the picture frame',[-4.055,2.15,7.35]);
   originalCover.rotation.y=Math.PI/2;
   const drop=group(originalCover,'Sagging kitchen cloth');
@@ -379,7 +394,7 @@ export function createShowFigures(world,{art=null}={}) {
   let firstPerson=null;
   function attachFirstPerson(camera) {
     if(firstPerson)firstPerson.root.removeFromParent();
-    firstPerson=makeFirstPerson(camera,m,double);firstPerson.pose(null);
+    firstPerson=makeFirstPerson(camera,m,double,handSkin);firstPerson.pose(null);
     return firstPerson.root;
   }
   function update(view={}) {
@@ -406,5 +421,5 @@ export function createShowFigures(world,{art=null}={}) {
   function reset(){update({active:false});}
   reset();
   return {root,anchors,hand:hand.root,body:monster.body,head:monster.head,blindfold:monster.patch,
-    double:double.actor,attachFirstPerson,update,reset};
+    double:double.actor,makeLatchHand:parent=>makeCounterHand(parent,m,handSkin).root,attachFirstPerson,update,reset};
 }

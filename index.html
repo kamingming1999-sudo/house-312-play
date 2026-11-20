@@ -73,8 +73,9 @@
       <div class="panel-actions"><button type="button" class="primary" data-resume>Put it down</button></div>
     </section>
     <section class="panel" data-panel="attic-note" aria-labelledby="atticNoteCopy" hidden>
-      <p class="eyebrow">INSIDE THE ATTIC BOX</p>
-      <p class="paper-note attic-message" id="atticNoteCopy">Turn around, you fool.</p>
+      <p class="eyebrow">A note on the attic box</p>
+      <p class="paper-note attic-message" id="atticNoteCopy">this ain't shortcut</p>
+      <p>Inside the lid, someone has scratched “Turn around, you fool.”</p>
       <div class="panel-actions"><button type="button" class="primary" data-resume>Put it down</button></div>
     </section>
     <section class="panel" data-panel="corner-note" hidden>
@@ -100,7 +101,7 @@
 
     </section>
     <section class="panel" data-panel="ending" hidden>
-      <p class="eyebrow">CHAPTER II / THE SHOW HOME</p><h2 id="endingTitle">You made it out.</h2><p id="endingCopy">The room kept your choice.</p><button type="button" class="primary" id="showRetry" hidden>Retry the last lesson</button>
+      <p class="eyebrow" id="endingChapter">CHAPTER II / THE SHOW HOME</p><h2 id="endingTitle">You made it out.</h2><p id="endingCopy">The room kept your choice.</p><button type="button" class="primary" id="showRetry" hidden>Retry the last lesson</button>
       <div class="panel-actions"><button type="button" class="primary" data-restart>Start again</button><a class="secondary" href="dont-press-the-button.html">Watch the film</a></div>
 
     </section>
@@ -117,7 +118,7 @@
     </section>
   </main>
   <script type="module">
-    import('./assets/game/game.mjs?v=storm29').catch(error => {
+    import('./assets/game/game.mjs?v=fold30').catch(error => {
       console.error('Room 312 could not start:', error);
       document.querySelectorAll('[data-panel]').forEach(panel => { panel.hidden = panel.dataset.panel !== 'error'; });
       document.getElementById('overlay').hidden = false;

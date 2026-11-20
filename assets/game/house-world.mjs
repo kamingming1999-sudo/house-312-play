@@ -2,7 +2,7 @@ import * as THREE from './vendor/three.module.js';
 import { createWorld as createRoom } from './world.mjs?v=tvtip20';
 import { createHearth } from './hearth-world.mjs?v=hearth20';
 import { createCourtyard } from './courtyard-world.mjs?v=storm29';
-import {buildAttic} from './attic.mjs?v=atticnote24';
+import {buildAttic} from './attic.mjs?v=fold30';
 import { dressParlorWindow } from './parlor-window.mjs';
 
 // Preserve the CRT, its ray targets and the working door; replace the hotel set.
@@ -205,7 +205,8 @@ export function createWorld(scene, options = {}) {
     [3.27,.52,.26],[2.43,.52,.26],[2.36,.52,.2],[2.36,.52,-.58]], .0045, piping, true);
   for (const x of [2.58,3.12]) tube('armchair tired back seam', [[x,.56,.207],[x,.95,.204],[x+.015,1.4,.228]], .003);
 
-  buildAttic({root,box,beam,wood,floor,wall,plaster,dark,brass,glassMap:textures.window,THREE});
+  const attic=buildAttic({root,box,beam,wood,floor,wall,plaster,dark,brass,
+    glassMap:textures.window,rainMap:textures.rain,stormSky:textures.stormSky,labelTexture:options.labelTexture,THREE});
 
   // Dirty sash window: moonlit tree silhouettes and rain on the glass.
   const glass = new THREE.MeshBasicMaterial({ color: 0x637b83, map: textures.window ?? null });
@@ -267,8 +268,6 @@ export function createWorld(scene, options = {}) {
   const plate = cylinder('tipped kitchen plate', .17, .018, [-3.59,1.073,7.22], enamel);
   plate.rotation.z = .32; plate.rotation.x = -.13;
   cylinder('draining saucer', .115, .012, [-3.53,.945,6.48], paper).rotation.z = .035;
-  box('abandoned dishcloth', [.36,.015,.28], [-3.42,.947,8.15], fadedFabric).rotation.y = .15;
-  tube('dishcloth crumple', [[-3.57,.96,8.06],[-3.48,.975,8.1],[-3.42,.965,8.12],[-3.32,.96,8.2]], .009, fadedFabric);
   box('kitchen dirty window', [.035, 1.05, 1.1], [-4.13, 2.15, 7.35], textures.kitchenArtwork ? dark : glass);
   for (const z of [6.76, 7.94]) box('kitchen window frame', [.09, 1.2, .07], [-4.08, 2.15, z]);
   for (const y of [1.55, 2.75]) box('kitchen window frame', [.09, .07, 1.25], [-4.08, y, 7.35]);
@@ -297,20 +296,30 @@ export function createWorld(scene, options = {}) {
     new THREE.MeshPhysicalMaterial({color:0x879b9d,transparent:true,opacity:.18,roughness:.5,transmission:.08,depthWrite:false}));
   for(const x of [-1.04,1.04])box('front doorway side wall',[.55,3.3,.18],[x,1.65,11.7],plaster);
   box('front doorway lintel',[1.55,.14,.2],[0,3.23,11.7],wood);
-  box('rain-darkened porch floor',[3.3,.15,3.7],[0,-.075,13.45],floor);
-  box('porch roof',[3.3,.12,3.7],[0,3.2,13.45],dark);
-  for(const x of [-1.35,1.35])box('porch timber post',[.12,3.2,.12],[x,1.6,14.65],wood);
-  box('night beyond the porch',[6,5,.1],[0,2,16],dark);
+  box('rain-darkened porch floor',[3.3,.15,2.62],[0,-.075,12.90],floor);
+  box('weathered porch nosing',[3.30,.065,.18],[0,-.033,14.24],wood);
+  box('porch roof',[3.3,.12,3.1],[0,3.2,13.09],dark);
+  for(const x of [-1.35,1.35])box('porch timber post',[.12,3.2,.12],[x,1.6,14.08],wood);
+  const gardenGeometry=new THREE.CylinderGeometry(12,12,6.9,48,24,true,-1.52,3.04);
+  const shades=[],uv=gardenGeometry.attributes.uv;
+  for(let i=0;i<uv.count;i++){
+    const shade=.038+.962*THREE.MathUtils.smoothstep(uv.getY(i),.045,.27);
+    shades.push(shade,shade,shade);
+  }
+  gardenGeometry.setAttribute('color',new THREE.Float32BufferAttribute(shades,3));
+  const garden=new THREE.Mesh(gardenGeometry,new THREE.MeshBasicMaterial({
+    map:textures.yardGarden??null,color:textures.yardGarden?0xc6d0d5:0x273539,vertexColors:true,side:THREE.BackSide,
+  }));
+  garden.name='Trees and stone wall beyond the garden';garden.position.set(0,3.12,11.75);root.add(garden);
+  const earth=new THREE.Mesh(new THREE.PlaneGeometry(24,14),new THREE.MeshStandardMaterial({
+    color:textures.yardEarth?0xa8b1a7:0x404636,roughness:.96,map:textures.yardEarth??null,
+    emissive:0x7891a3,emissiveMap:textures.yardEarth??null,emissiveIntensity:textures.yardEarth ? .33 : 0,
+  }));
+  earth.name='Damp earth beside the porch';earth.rotation.x=-Math.PI/2;earth.position.set(0,-.052,18);
+  earth.receiveShadow=true;root.add(earth);
   const porchLamp=new THREE.PointLight(0xbccad1,3.1,5,2);
   porchLamp.position.set(.62,2.35,12.15);scene.add(porchLamp);
   box('porch lantern glass',[.1,.18,.1],[.92,2.36,12.2],new THREE.MeshBasicMaterial({color:0xb3a88c}));
-  // Moonlit trunks on the other side of the porch establish a real exterior.
-  const bark=new THREE.MeshStandardMaterial({color:0x384743,roughness:1});
-  for(const [i,x] of [-2.8,-2.02,-1.5,-.66,.38,1.19,2.05,2.95].entries()){
-    const z=15.36+(i%3)*.19;
-    beam('wet tree trunk',[x,-.15,z],[x+.11,3.1,z+.18],.13,.11,bark);
-    beam('bare moonlit branch',[x,1.25+i%2*.6,z],[x+(i%2?.71:-.64),2.72,z+.08],.055,.06,bark);
-  }
   world.lighting = { lamp: 8, ceiling: 7, hall: 2.5 };
 
   // Layers hug existing walls and furniture so every established walking route stays clear.
@@ -364,7 +373,7 @@ export function createWorld(scene, options = {}) {
     'candle wax drip','fallen photograph backing','photograph frame edge','soot hearth edge','discarded sofa cushion',
     'chipped mug','old tea in mug',
     'table lamp base','table lamp stem','cupboard pull','refrigerator handle','refrigerator freezer seam',
-    'tipped kitchen plate','draining saucer','abandoned dishcloth','picture hanging cord','front door handle']);
+    'tipped kitchen plate','draining saucer','picture hanging cord','front door handle']);
   root.traverse(mesh => { if (mesh.isMesh && fineDetails.has(mesh.name)) decorate(mesh); });
   picture.traverse(mesh => { if (mesh.isMesh) decorate(mesh); });
   // Merge repeated fixed details by material. Original CRT, note, door and floor
@@ -417,6 +426,7 @@ export function createWorld(scene, options = {}) {
     hearth.update(t,{reducedMotion});
     const rumble=courtyard.update(t,{dt,weather,reducedMotion});
     world.moon.intensity=3.4+5.8*courtyard.storm.level;
+    attic.setStorm(courtyard.storm.level);
     return rumble;
   };
   world.resetAtmosphere=()=>{

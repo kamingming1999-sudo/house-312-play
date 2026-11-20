@@ -2,12 +2,12 @@ import * as THREE from './vendor/three.module.js';
 import { labelTexture } from './textures.mjs?v=note18';
 import { createScreen } from './crt.mjs?v=dread2';
 import { upgradeTelevision } from './tv-world.mjs?v=dread2';
-import { createHouseTextures } from './house-textures.mjs?v=storm29';
-import { createWorld } from './house-world.mjs?v=storm29';
-import { createHallWorld } from './hall-world.mjs?v=showhome22';
-import {stairHeight} from './attic.mjs?v=atticnote24';
-import {createShowPresentation} from './show-home.mjs?v=listener27';
-import { createHallChapter, resetHallChapter, startHallChapter, hallChapterAction, advanceHallChapter, freeHallMovement, hallTargetLabel, restoreShowCheckpoint, CHECKPOINT_KEY, OUTSIDE_KEY } from './hall-chapter.mjs?v=listener27';
+import { createHouseTextures } from './house-textures.mjs?v=fold30';
+import { createWorld } from './house-world.mjs?v=fold30';
+import { createHallWorld } from './hall-world.mjs?v=fold30';
+import {stairHeight} from './attic.mjs?v=fold30';
+import {createShowPresentation} from './show-home.mjs?v=fold30';
+import { createHallChapter, resetHallChapter, startHallChapter, hallChapterAction, advanceHallChapter, freeHallMovement, hallTargetLabel, restoreShowCheckpoint, CHECKPOINT_KEY, OUTSIDE_KEY } from './hall-chapter.mjs?v=fold30';
 import { createPaperClue, CORNER_CLUE } from './paper-clue.mjs?v=presence7';
 import { createCornerSpirit } from './corner-spirit.mjs?v=note12';
 import { createCourtyardGirl } from './courtyard-girl.mjs?v=storm29';
@@ -73,7 +73,8 @@ const hallWorld = createHallWorld(world,{texture:cornerTexture,labelTexture});
 const hallChapter = createHallChapter();
 let hallView = advanceHallChapter(hallChapter,0,{active:false});
 let lessonYaw=0,lessonPitch=0,porchStart={x:0,z:10};
-const showHome=createShowPresentation({world,camera,renderer,girl:courtyardGirl,art:houseTextures.kitchenArtwork,grime:houseTextures.grime,element:$,act:showAction});
+const showHome=createShowPresentation({world,camera,renderer,girl:courtyardGirl,art:houseTextures.kitchenArtwork,
+  grime:houseTextures.grime,handSkin:houseTextures.handSkin,foldSkin:houseTextures.foldSkin,foldGeometry:houseTextures.foldGeometry,element:$,act:showAction});
 let cornerHintRead = false;
 let windowView = null;
 const flashlight = new THREE.SpotLight(0xffe7c1, 5.5, 11, .38, .65, 1.6);
@@ -349,7 +350,7 @@ function showAction(id){
   if(!result.accepted){if(result.copy)toast(result.copy);return;}
   clearMovement();$('toast').hidden=true;
   if(id==='hall-key'||id==='painting'||hallChapter.stage==='replay'){lessonYaw=yaw;lessonPitch=pitch;}
-  if(id==='replace-painting')cutView(lessonYaw,lessonPitch);
+  if(id==='replace-painting'){showHome.audio.stop('mirror-scream');cutView(lessonYaw,lessonPitch);}
   if(id==='step-out'){porchStart={...position};cutView(Math.PI,0);}
   if(id==='hangup')for(const name of ['practice-1','practice-2','practice-3'])showHome.audio.stop(name);
   if(id==='cloth-full'||hallChapter.stage==='opening'){
@@ -373,6 +374,11 @@ function updateHallGame(dt){
     if(k===1)cutView(0,-.04);
   }
   if(hallView.stage==='porch'&&prior==='opening'){sound.pause();cutView(Math.PI,-.025);}
+  if(hallView.stage==='graveyard'&&prior==='quiet'){
+    const grave=hallWorld.targets['yard-tomb'].point;
+    cutView(Math.atan2(position.x-grave.x,position.z-grave.z),
+      Math.atan2(grave.y+.22-eyeHeight,Math.hypot(grave.x-position.x,grave.z-position.z)));
+  }
   if(['trapped','escaped'].includes(hallView.stage)){
     if(hallView.stage==='escaped'){saveLesson(OUTSIDE_KEY,{chapter:2,location:'outside',x:position.x,z:position.z});saveLesson(CHECKPOINT_KEY,null);}
     const before=state.phase;state.phase='ending';state.phaseTime=0;phaseChanged(before);
@@ -409,7 +415,7 @@ function pauseGame() {
   if (!started || (paused && !readingPanels.has(panel)) || !['explore', 'hall', 'hallway', 'fakeout', 'lunge', 'scareHold', 'blackout'].includes(state.phase)) return;
   paused = true; showHome.audio.pause(); showPanel('pause');
 }
-function resumeGame() { paused=false;hidePanel();if(!['porch','crossing','outside','quiet'].includes(hallChapter.stage))sound.resume();showHome.audio.resume();lockMouse(); }
+function resumeGame() { paused=false;hidePanel();if(!['porch','crossing','outside','quiet','graveyard'].includes(hallChapter.stage))sound.resume();showHome.audio.resume();lockMouse(); }
 function startHall(deeper) {
   if (!chooseHall(state, deeper)) return;
   photoActive = false; creature.root.visible = false;
@@ -445,19 +451,22 @@ function phaseChanged(before) {
     creature.root.visible = false; showPanel('previewEnd');
   } else if (state.phase === 'ending') {
     creature.root.visible = false; sound.stopWarning(); showPanel('ending');
+    $('endingChapter').textContent='CHAPTER II / THE SHOW HOME';
     if(!['escaped','trapped'].includes(hallChapter.stage)){
       $('endingTitle').textContent=state.deep?'It was waiting.':'You left it alone.';
       $('endingCopy').textContent=state.roundPressed?'You found the exit. The room kept your choice.':'You found the quiet way out.';
       $('showRetry').hidden=true;return;
     }
     const escaped=hallChapter.stage==='escaped';
+    if(escaped)$('endingChapter').textContent='CHAPTER II / GAME OVER';
     $('endingTitle').textContent=escaped?'Outside.':'One person in the house.';
-    $('endingCopy').textContent=escaped?'You shut the door yourself. The voice left inside is a recording.':'You can see the sink below you. Through the open door, your coat disappears into the rain.';
+    $('endingCopy').textContent=escaped?'Cold stone under your hand. Behind the shut door, the house still has your voice.':'You can see the sink below you. Through the open door, your coat disappears into the rain.';
     $('showRetry').hidden=escaped;
     showHome.audio.reset();
   }
 }
 function interactionRange(id) {
+  if(id==='yard-tomb')return 4;
   if (['corner-spirit','waving-woman','attic-box'].includes(id)) return 12;
   return ['tv','button'].includes(id) ? 3.4 : 2.25;
 }
@@ -482,7 +491,8 @@ function cutView(angle, tilt) {
 }
 function updateFocus(gazeSeconds) {
   focused = null;
-  if (!started || paused || panel || coverMode!=='none' || (state.phase==='hallway'&&!freeHallMovement(hallChapter)) || !['explore', 'hall', 'hallway'].includes(state.phase)) {
+  const atGrave=state.phase==='hallway'&&hallChapter.stage==='graveyard';
+  if (!started || paused || panel || coverMode!=='none' || (state.phase==='hallway'&&!atGrave&&!freeHallMovement(hallChapter)) || !['explore', 'hall', 'hallway'].includes(state.phase)) {
     if (!paused && !panel) courtyardGirl.watch(0, {lookingAtWindow:false});
     $('interact').hidden = true; $('reticle').classList.remove('active'); return;
   }
@@ -501,7 +511,7 @@ function updateFocus(gazeSeconds) {
     sound.scare();
     $('toast').hidden = true;
     focused = 'waving-woman';
-  } else if (id && hit.distance < interactionRange(id)) {
+  } else if (id && (!atGrave||id==='yard-tomb') && hit.distance < interactionRange(id)) {
     if (id !== 'button' || state.phase === 'explore') focused = id;
   }
   const labels = { cover:trialView.hideAllowed?'Hide under the table':'Inspect hiding place', button: 'Press the button', note: 'Read the TV tip', 'corner-note': 'Read the handwritten line', 'attic-box': 'Inspect the box', 'corner-spirit': 'Make it leave', 'waving-woman': 'Send her back', tv: 'Read the screen', door: state.doorUnlocked ? 'Open the door' : 'Try the door', 'hall-phone':'Answer the telephone', 'hall-key':'Lift the folded cloth', 'front-door':hallView.stage==='unlocked'?'Use the front-door key':'Try the front door' };
@@ -650,13 +660,16 @@ canvas.addEventListener('wheel',event=>{
 },{passive:false});
 canvas.addEventListener('click', () => { if (document.pointerLockElement === canvas) interact(); });
 function tapObject(x, y) {
-  if (!started || paused || panel || coverMode!=='none' || (state.phase==='hallway'&&!freeHallMovement(hallChapter)) || !['explore', 'hall', 'hallway'].includes(state.phase)) return;
+  const atGrave=state.phase==='hallway'&&hallChapter.stage==='graveyard';
+  if (!started || paused || panel || coverMode!=='none' || (state.phase==='hallway'&&!atGrave&&!freeHallMovement(hallChapter)) || !['explore', 'hall', 'hallway'].includes(state.phase)) return;
   const rect = canvas.getBoundingClientRect();
   camera.updateMatrixWorld(); world.root.updateMatrixWorld(true);
   raycaster.setFromCamera(new THREE.Vector2((x - rect.left) / rect.width * 2 - 1, -(y - rect.top) / rect.height * 2 + 1), camera);
   const hit = raycaster.intersectObjects([world.root,cornerSpirit.root], true).find(h => visibleInScene(h.object));
   if (!hit || hit.distance > 12) return;
   const id = interactionId(hit.object);
+  if (atGrave){if(id==='yard-tomb'&&hit.distance<interactionRange(id))showAction(id);return;}
+  if (id==='yard-tomb')return;
   if (windowView && id !== 'waving-woman') return;
   if (id) {
     if(id==='cover'){requestHide();return;}
@@ -731,9 +744,12 @@ function frame(timestamp) {
   let viewZoom=WALK_ZOOM;
   if(['fakeout','lunge','scareHold','blackout'].includes(state.phase))viewZoom=REVEAL_ZOOM;
   else if(state.phase==='hallway'){
-    if(['replay','imprint','reflection'].includes(hallChapter.stage))viewZoom=.88;
+    if(hallChapter.stage==='hand')viewZoom=.84;
+    else if(hallChapter.stage==='graveyard')viewZoom=.98;
+    else if(['replay','imprint','reflection'].includes(hallChapter.stage))viewZoom=.88;
     else if(['replaced','trapped'].includes(hallChapter.stage))viewZoom=.85;
   }
+  else if(state.phase==='ending'&&hallChapter.stage==='escaped')viewZoom=.98;
   if (camera.zoom !== viewZoom) { camera.zoom = viewZoom; camera.updateProjectionMatrix(); }
   let moving = false;
   if(canLook()) { const view=lookControl.step(dt,{yaw,pitch});yaw=view.yaw;pitch=view.pitch; }
@@ -854,7 +870,9 @@ function frame(timestamp) {
   $('mobileControls').hidden = !started || paused || Boolean(panel) || !['explore', 'hall', 'hallway'].includes(state.phase);
   updateFocus(elapsed);
   document.body.dataset.windowScare = String(Boolean(windowView));
-  $('decisionStatus').textContent = windowView && !panel ? 'Tap her to send her back.' : active ? trials.status!=='idle'?coverMode==='hidden'?(trialView.canLeave?'Keeper says: come out.':'Stay hidden. Listen to the whole order.'):trialView.status==='hideCountdown'?`Hide · ${Math.ceil(trialView.remaining)} seconds`:trialView.objective:walkPath.length?'Walking · tap Stop to stand still':'Tap floor to walk · drag to look' : state.phase==='hallway' ? (hallView.inventory||'Tap floor to walk · drag to look') : state.preview ? 'Jump scare preview' : '';
+  const inYard=['porch','crossing','outside','quiet','graveyard'].includes(hallView.stage);
+  const hallStatus=inYard?'':hallView.inventory||'Tap floor to walk · drag to look';
+  $('decisionStatus').textContent = windowView && !panel ? 'Tap her to send her back.' : active ? trials.status!=='idle'?coverMode==='hidden'?(trialView.canLeave?'Keeper says: come out.':'Stay hidden. Listen to the whole order.'):trialView.status==='hideCountdown'?`Hide · ${Math.ceil(trialView.remaining)} seconds`:trialView.objective:walkPath.length?'Walking · tap Stop to stand still':'Tap floor to walk · drag to look' : state.phase==='hallway' ? hallStatus : state.preview ? 'Jump scare preview' : '';
   showHome.update(hallView,{...position,yaw,pitch,baseYaw:lessonYaw,basePitch:lessonPitch,lookOffset:Math.atan2(Math.sin(yaw-lessonYaw),Math.cos(yaw-lessonYaw))},{active:started&&['hallway','ending'].includes(state.phase),visible:!panel&&!paused});
   renderReceiver();showHome.renderReflection(scene);renderer.render(scene,camera);
 }

@@ -92,7 +92,7 @@ export function createOccupant(parent,receiver){
   }
   const hips=joint('Pelvis',null,0,371,-3),spine=joint('Clothed spine',hips,0,309,-7);
   const skull=joint('Head pivot',spine,0,116,0),arms=[],legs=[];
-  const pos=[],plates=[],facing=[],indices=[],skin=[],weights=[],forearmTriangles=[],handTriangles=[];
+  const pos=[],plates=[],facing=[],indices=[],skin=[],weights=[],forearmTriangles=[],handTriangles=[],cuffTriangles=[];
   function addSurface(sections,bind,{side=1,head=false,kind='',segments=36}={}){
     const first=pos.length/3;
     for(const [y,left,right,front,back] of sections){
@@ -131,6 +131,7 @@ export function createOccupant(parent,receiver){
     for(let j=0;j<sections.length-1;j++)for(let i=0;i<segments;i++){
       const a=first+j*segments+i,b=first+j*segments+(i+1)%segments;
       if(side===1 && kind==='hand')handTriangles.push(a,a+segments,b,b,a+segments,b+segments);
+      if(side===1 && kind==='sleeve' && sections[j][0]>=248)cuffTriangles.push(a,a+segments,b,b,a+segments,b+segments);
       if(side===1 && (kind==='sleeve'||kind==='hand') && sections[j][0]>=248)forearmTriangles.push(a,a+segments,b,b,a+segments,b+segments);
       if(side===1)indices.push(a,a+segments,b,b,a+segments,b+segments);
       else indices.push(a,b,a+segments,b,b+segments,a+segments);
@@ -213,10 +214,10 @@ export function createOccupant(parent,receiver){
       receiver.quaternion.copy(inverse.copy(q).invert());
     }
   }
-  function makeForearm({handOnly=false}={}){
+  function makeForearm({handOnly=false,sleeveOnly=false}={}){
     // The POV camera shows the same photographed wrist that appears on the
     // double. Crop only the right sleeve and fingers, and orient it for POV.
-    const triangles=handOnly?handTriangles:forearmTriangles;
+    const triangles=handOnly?handTriangles:sleeveOnly?cuffTriangles:forearmTriangles;
     const g=new THREE.BufferGeometry(),used=[...new Set(triangles)],remap=new Map(used.map((id,i)=>[id,i]));
     for(const name of ['position','normal','uv','plate','facing']){
       const a=geometry.getAttribute(name),out=new Float32Array(used.length*a.itemSize);
