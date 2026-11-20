@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
 import {createOccupant} from './occupant-rig.mjs?v=fold30';
 import {createDetailedHand} from './detailed-hand.mjs';
-import {createFoldedBody} from './folded-house.mjs';
+import {createFoldedBody} from './folded-house.mjs?v=reveal31';
 
 const clamp = value => THREE.MathUtils.clamp(Number.isFinite(value) ? value : 0, 0, 1);
 const lerp = THREE.MathUtils.lerp;
@@ -196,7 +196,7 @@ function makeBody(parent,m,art) {
     for(const y of [-.307,.307]) oval(head,'Tarnished frame tack',[.009,.009,.004],[side*.309,y,.083],m.brass);
   }
   const patch=group(head,'Loose wallpaper carried over the eye',[.025,-.65,.123]);
-  sheet(patch,'Wallpaper blindfold',.698,.766,m.wallpaper);
+  const eyeCoverSheet=sheet(patch,'Wallpaper blindfold',.698,.766,m.wallpaper);
   tube(patch,'Torn edge of wallpaper',[[-.347,-.359,.006],[-.174,-.372,.011],[-.018,-.358,.015],
     [.162,-.381,.016],[.345,-.370,.005]],.004,m.thread,18);
 
@@ -245,7 +245,7 @@ function makeBody(parent,m,art) {
     const shrink=clamp(escape?.progress),standing=rise*(1-shrink);
     body.scale.set(1-shrink*.60,1-shrink*.40,1-shrink*.60);
     body.visible=shrink<.995;
-    body.position.set(0,0,0);
+    body.position.set((1-rise)*3.05,0,0);
     if(escape) {
       const s=body.scale;
       body.position.set(escape.x+s.x*.71,0,escape.z-s.z*7.18);
@@ -292,7 +292,9 @@ function makeBody(parent,m,art) {
       lowerRotation.setFromUnitVectors(down,delta.subVectors(wrist,elbowPoint).normalize());
       elbow.quaternion.copy(shoulder.quaternion).invert().multiply(lowerRotation);
     }
-    const blind=clamp(view.blind),cover=blind;
+    const coveredByPlayer=view.eyeCover==='direct';
+    const cover=coveredByPlayer?1:clamp(view.blind);
+    eyeCoverSheet.material=coveredByPlayer?m.cloth:m.wallpaper;
     patch.visible=cover>.015;
     patch.position.set((1-cover)*.40,-(1-cover)*.73,.126+(1-cover)*.05);
     patch.rotation.set(-(1-cover)*.76,(1-cover)*.33,(1-cover)*-.43);
@@ -352,7 +354,7 @@ export function createShowFigures(world,{art=null,handSkin=null,foldSkin=null,fo
   };
   const double=makeDouble(root,m);
   const hand=makeCounterHand(root,m,handSkin);
-  const monster=foldGeometry?createFoldedBody(root,foldGeometry,foldSkin,picture,m.wallpaper):makeBody(root,m,picture);
+  const monster=foldGeometry?createFoldedBody(root,foldGeometry,foldSkin,picture,m.wallpaper,m.cloth):makeBody(root,m,picture);
   const originalCover=group(root,'Kitchen cloth caught on the picture frame',[-4.055,2.15,7.35]);
   originalCover.rotation.y=Math.PI/2;
   const drop=group(originalCover,'Sagging kitchen cloth');
@@ -388,7 +390,7 @@ export function createShowFigures(world,{art=null,handSkin=null,foldSkin=null,fo
   const anchors = {
     eye:v(-4.105,2.15,7.35),raisedEye:v(-.37,2.65,7.22),
     replayCamera:v(-4.015,2.14,7.35),hand:v(-3.43,1.045,8.48),
-    revealCamera:v(.54,1.54,9.47),revealTarget:v(-.51,1.61,7.18),
+    revealCamera:v(.16,1.54,9.86),revealTarget:v(-.36,1.48,7.47),
     finaleCamera:v(-.33,2.64,7.29),finaleTarget:v(.02,1.47,11.6)
   };
   let firstPerson=null;

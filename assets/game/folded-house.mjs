@@ -6,7 +6,7 @@ const vec = (x=0,y=0,z=0) => new THREE.Vector3(x,y,z);
 
 // The front and back of the same creature were fitted into a closed, weighted
 // mesh. The four corners of its eye socket are registered to the head bone.
-export function createFoldedBody(parent, geometry, skinTexture, art, wallpaper) {
+export function createFoldedBody(parent, geometry, skinTexture, art, wallpaper, cloth) {
   if (skinTexture) {
     skinTexture.colorSpace = THREE.SRGBColorSpace;
     skinTexture.anisotropy = 4;
@@ -109,20 +109,20 @@ export function createFoldedBody(parent, geometry, skinTexture, art, wallpaper) 
   function update(view) {
     body.visible=Boolean(view.bodyVisible);
     if (!body.visible) return;
-    const rise=clamp(view.rise),kneel=clamp(view.crouch),blind=clamp(view.blind);
+    const rise=clamp(view.rise),kneel=clamp(view.crouch)*rise,blind=clamp(view.blind);
     const lift=Math.max(clamp(view.raise),blind);
     const escape=view.escape,shrink=clamp(escape?.progress);
     body.visible=shrink<.997;
     const scale=mix(.84,1.035,rise)*(1-shrink*.44);
     body.scale.setScalar(scale);
-    body.position.set(escape?.x??mix(-3.69,-.39,rise),.018,escape?.z??mix(7.33,7.39,rise));
-    body.rotation.y=mix(Math.PI*.49,.20,rise);
+    body.position.set(escape?.x??mix(-.02,-.39,rise),.018,escape?.z??mix(7.24,7.39,rise));
+    body.rotation.y=mix(-.48,.20,rise);
     const fold=1-rise,step=(escape?.stride??view.stride??0)*rise;
     pelvis.position.copy(restPelvis);
-    pelvis.position.y-=fold*.30+kneel*.46;
+    pelvis.position.y-=fold*.30+.094*fold**4+kneel*.46;
     pelvis.rotation.set(kneel*.16,step*.035,-.045*rise);
-    spine.rotation.set(fold*.74+kneel*.17,-fold*.34+step*.035,fold*.33-.025*rise);
-    neck.rotation.set(-fold*.34,.12*fold,-fold*.40+.047*rise);
+    spine.rotation.set(fold*.53+kneel*.17,-fold*.20+step*.035,fold*.18-.025*rise);
+    neck.rotation.set(-fold*.30,.09*fold,-fold*.27+.047*rise);
     head.rotation.set(-THREE.MathUtils.clamp(view.headPitch??0,-1,1)*.22,
       THREE.MathUtils.clamp(view.headYaw??0,-1.5,1.5)*.22,fold*.20);
     for (let i=0;i<2;i++) {
@@ -136,11 +136,14 @@ export function createFoldedBody(parent, geometry, skinTexture, art, wallpaper) 
     }
     body.updateMatrixWorld(true);
     reach(arms[1],lift,blind);
-    patch.visible=blind>.012;
-    patch.position.copy(centre).addScaledVector(normal,.049);
-    patch.position.x+=(1-blind)*.36;
-    patch.position.y-=(1-blind)*.53;
-    patch.rotation.set(-.93*(1-blind),.19,-.30*(1-blind)-.07);
+    const coveredByPlayer=view.eyeCover==='direct',cover=coveredByPlayer?1:blind;
+    patch.material=coveredByPlayer?cloth:wallpaper;
+    patch.scale.set(coveredByPlayer ? .66 : 1,coveredByPlayer ? .63 : 1,1);
+    patch.visible=cover>.012;
+    patch.position.copy(centre).addScaledVector(normal,coveredByPlayer ? .031 : .049);
+    patch.position.x+=(1-cover)*.36;
+    patch.position.y-=(1-cover)*.53;
+    patch.rotation.set(-.93*(1-cover),.19,-.30*(1-cover)-.07);
   }
   return {body,head,patch,update};
 }

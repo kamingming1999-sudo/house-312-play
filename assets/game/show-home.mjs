@@ -1,8 +1,8 @@
 import * as THREE from './vendor/three.module.js';
-import {createShowFigures} from './show-figures.mjs?v=fold30';
+import {createShowFigures} from './show-figures.mjs?v=reveal31';
 import {createPaintingMirror} from './painting-mirror.mjs';
 import {createShowAudio} from './show-audio.mjs?v=fold30';
-import {hallTargetLabel,COPY_DELAY,KEYHOLE_HOLD} from './hall-chapter.mjs?v=fold30';
+import {hallTargetLabel,COPY_DELAY,KEYHOLE_HOLD} from './hall-chapter.mjs?v=reveal31';
 
 const clamp=n=>Math.max(0,Math.min(1,n));
 const ease=n=>{const t=clamp(n);return t*t*(3-2*t);};
@@ -72,10 +72,13 @@ export function createShowPresentation({world,camera,renderer,girl,art,grime,han
       const reach=projection.reach||0;
       target.set(projection.x-Math.sin(projection.yaw)*reach*.31,
         1.41-.55*(projection.crouch||0)-.14*reach,projection.z-Math.cos(projection.yaw)*reach*.31);
+      // The live return frames the double on the left and the kitchen doorway
+      // on the right. Recorded footage still follows the player's actual tape.
+      if(v.stage==='reflection')target.set(projection.x,1.42,7.26);
       camera.lookAt(target);
       if(v.stage==='reflection'){
-        camera.rotateY(THREE.MathUtils.clamp(player.lookOffset,-1,1)*.12);
-        camera.rotateX(THREE.MathUtils.clamp(player.pitch-player.basePitch,-1,1)*.13);
+        camera.rotateY(THREE.MathUtils.clamp(player.lookOffset,-1,1)*.055);
+        camera.rotateX(THREE.MathUtils.clamp(player.pitch-player.basePitch,-1,1)*.07);
       }
     }
     if(v.stage==='rising'){
@@ -103,7 +106,7 @@ export function createShowPresentation({world,camera,renderer,girl,art,grime,han
     }
     if(v.mirrorOpen)projection=mirror.present(player,v.mirrorTime);else mirror.hide();
     const relative=Math.atan2(Math.sin(v.headYaw-player.baseYaw),Math.cos(v.headYaw-player.baseYaw));
-    figures.update({...v,active:true,headYaw:relative,projection,escape,pov});
+    figures.update({...v,active:true,headYaw:v.eyeCover==='direct'?0:relative,projection,escape,pov});
     camera.updateMatrixWorld();
   }
   function update(v,p,{visible,active}){

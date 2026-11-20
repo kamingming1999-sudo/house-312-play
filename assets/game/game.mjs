@@ -6,8 +6,8 @@ import { createHouseTextures } from './house-textures.mjs?v=fold30';
 import { createWorld } from './house-world.mjs?v=fold30';
 import { createHallWorld } from './hall-world.mjs?v=fold30';
 import {stairHeight} from './attic.mjs?v=fold30';
-import {createShowPresentation} from './show-home.mjs?v=fold30';
-import { createHallChapter, resetHallChapter, startHallChapter, hallChapterAction, advanceHallChapter, freeHallMovement, hallTargetLabel, restoreShowCheckpoint, CHECKPOINT_KEY, OUTSIDE_KEY } from './hall-chapter.mjs?v=fold30';
+import {createShowPresentation} from './show-home.mjs?v=reveal31';
+import { createHallChapter, resetHallChapter, startHallChapter, hallChapterAction, advanceHallChapter, freeHallMovement, hallTargetLabel, restoreShowCheckpoint, CHECKPOINT_KEY, OUTSIDE_KEY } from './hall-chapter.mjs?v=reveal31';
 import { createPaperClue, CORNER_CLUE } from './paper-clue.mjs?v=presence7';
 import { createCornerSpirit } from './corner-spirit.mjs?v=note12';
 import { createCourtyardGirl } from './courtyard-girl.mjs?v=storm29';
@@ -333,9 +333,11 @@ function resumeLesson(){
   faceShowBody();hallView=advanceHallChapter(hallChapter,0,{active:false});
   $('toast').hidden=true;
 }
+function faceHallPoint(t){
+  cutView(Math.atan2(position.x-t.x,position.z-t.z),Math.atan2(t.y-eyeHeight,Math.hypot(t.x-position.x,t.z-position.z)));
+}
 function faceShowBody(){
-  const t=showHome.figures.anchors.revealTarget;
-  cutView(Math.atan2(position.x-t.x,position.z-t.z),Math.atan2(t.y-1.65,Math.hypot(t.x-position.x,t.z-position.z)));
+  faceHallPoint(showHome.figures.anchors.revealTarget);
   lessonYaw=yaw;lessonPitch=pitch;
 }
 function showAction(id){
@@ -349,6 +351,7 @@ function showAction(id){
   const result=hallChapterAction(hallChapter,id);
   if(!result.accepted){if(result.copy)toast(result.copy);return;}
   clearMovement();$('toast').hidden=true;
+  if(id==='keyhole'&&hallChapter.stage==='mimic')faceHallPoint(showHome.figures.anchors.revealTarget);
   if(id==='hall-key'||id==='painting'||hallChapter.stage==='replay'){lessonYaw=yaw;lessonPitch=pitch;}
   if(id==='replace-painting'){showHome.audio.stop('mirror-scream');cutView(lessonYaw,lessonPitch);}
   if(id==='step-out'){porchStart={...position};cutView(Math.PI,0);}
@@ -367,6 +370,7 @@ function updateHallGame(dt){
     if(e.type==='checkpoint')saveLesson(CHECKPOINT_KEY,hallChapter.checkpoint);
   }
   $('objective').textContent=hallView.objective;
+  if(hallView.stage==='unlocked'&&prior==='travel')faceHallPoint(hallWorld.targets.keyhole.point);
   if(hallView.stage==='mimic'&&prior==='rising')faceShowBody();
   if(hallView.stage==='crossing'||(hallView.stage==='outside'&&prior==='crossing')){
     const k=hallView.stage==='outside'?1:Math.min(1,hallView.stageTime/2.5);
@@ -745,6 +749,7 @@ function frame(timestamp) {
   if(['fakeout','lunge','scareHold','blackout'].includes(state.phase))viewZoom=REVEAL_ZOOM;
   else if(state.phase==='hallway'){
     if(hallChapter.stage==='hand')viewZoom=.84;
+    else if(hallChapter.stage==='rising')viewZoom=.66;
     else if(hallChapter.stage==='graveyard')viewZoom=.98;
     else if(['replay','imprint','reflection'].includes(hallChapter.stage))viewZoom=.88;
     else if(['replaced','trapped'].includes(hallChapter.stage))viewZoom=.85;

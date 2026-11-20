@@ -2,6 +2,7 @@
 // excerpts from this run. The playback cursor never dispatches recorded input.
 export const COPY_DELAY = .72;
 export const KEYHOLE_HOLD = 3.2;
+const LIVE_RETURN_SECONDS = 2.4;
 const MIRROR_SCREAM_AT = .58;
 export const CHECKPOINT_KEY = 'house312.showhome.rehearsal.v1';
 export const OUTSIDE_KEY = 'house312.showhome.porch.v1';
@@ -119,6 +120,10 @@ function beginReplay(s,skipped){
   else cue(s,'projector');
   return accepted;
 }
+function leaveKeyhole(s){
+  s.stoodAt=s.elapsed;s.crouched=false;stage(s,'rising');
+  if(!s.eyeCover)cue(s,'rise',COPY_DELAY);
+}
 export function hallChapterAction(s,id) {
   if(s.stage==='dormant')return blocked('Enter the hallway first.');
   if(s.mirrorOpen){
@@ -169,8 +174,13 @@ export function hallChapterAction(s,id) {
     if(!s.hasCloth)return blocked('Its painted eyes look wet.');
     if(!['travel','unlocked'].includes(s.stage))return blocked('The frame is out of reach.');
     s.eyeCover=s.eyeCover?'':'direct';cue(s,s.eyeCover?'paper-cover':'test-clear',0,s.eyeCover?'[You hang the key cloth over the painted eyes.]':captions['test-clear']);return accepted;
-  case 'front-door':
+  case 'keyhole':case 'front-door':
     if(s.stage==='travel'){s.doorUnlocked=true;stage(s,'unlocked');cue(s,'unlock');cue(s,'keyhole-cough',2.1);return accepted;}
+    if(id==='keyhole'){
+      if(s.stage==='unlocked')return beginReplay(s,false);
+      if(s.stage==='mimic'&&s.clothLevel===0)return accepted;
+      return blocked(s.doorUnlocked?'':'Turn the spare key first.');
+    }
     if(s.stage==='unlocked')return beginReplay(s,true);
     if(s.stage==='mimic'){
       if(s.clothLevel===2)return blocked('Lower the cloth so you can find the latch.');
@@ -178,12 +188,9 @@ export function hallChapterAction(s,id) {
       stage(s,'opening');s.voiceUntil=0;s.doorAmount=0;cue(s,'door-open');return accepted;
     }
     return blocked(s.keyTaken?'The latch is already moving.':'The lock needs a key.');
-  case 'keyhole':
-    if(s.stage!=='unlocked')return blocked('Turn the spare key first.');
-    return beginReplay(s,false);
   case 'stand':
     if(s.stage!=='reflection')return blocked('');
-    s.stoodAt=s.elapsed;s.crouched=false;stage(s,'rising');cue(s,'rise',COPY_DELAY);return accepted;
+    leaveKeyhole(s);return accepted;
   case 'crouch':case 'raise':
     if(s.stage!=='mimic'||s.clothLevel===2)return blocked('');
     if(id==='crouch')s.crouched=!s.crouched;else s.raised=!s.raised;return accepted;
@@ -216,8 +223,8 @@ function coveredDuringTest(s){return s.clothTest||(s.testEnds>s.elapsed&&s.testE
 const objectives={
   dormant:'',search:'Answer the kitchen telephone.',call:'Listen to both ends of the line.',practice:'Listen. Whose voice is it now?',
   hand:'Try reaching for the key. Watch the fingers.',travel:'Use the brass key at the front door.',
-  latch:'Your hand is still on the closed door.',unlocked:'Warm light leaks through the keyhole. Look inside.',replay:'',imprint:'',reflection:'Tilt your view. Watch the other head. Then stand up.',
-  rising:'',mimic:'The house is waiting for one last demonstration.',opening:'',porch:'The porch is open. Step outside.',
+  latch:'Your hand is still on the closed door.',unlocked:'Warm light leaks through the keyhole. Look inside.',replay:'Those are your movements on the tape.',imprint:'Something is looking back.',reflection:'Look behind your double, in the kitchen doorway.',
+  rising:'You pull away from the keyhole.',mimic:'Raise your hand. Watch the figure in the doorway.',opening:'',porch:'The porch is open. Step outside.',
   crossing:'',outside:'Close the door behind you.',quiet:'',graveyard:'Touch the gravestone beside the porch.',replaced:'',escaped:'The rain is real.',trapped:'There is one person in the house.',
 };
 export function showActions(s){
@@ -226,7 +233,7 @@ export function showActions(s){
   if(s.stage==='hand')return [['reach',s.reach?'Pull your hand back':'Reach towards the fingers'],
     ...(s.eyeCover?[]:[['test',s.clothTest?'Uncover the painting':'Test the cloth']]),
     ...(s.reach&&!s.keyTaken&&s.elapsed>=s.testEnds?[['take','Take the key']]:[]),['leave-hand','Step back']];
-  if(s.stage==='reflection')return [['stand','Stand up']];
+  if(s.stage==='reflection')return [['stand','Step back from the keyhole']];
   if(s.stage==='mimic'){
     if(s.clothLevel===2)return [['lower','Lower the cloth']];
     if(s.clothLevel===1)return [['cloth-full','Cover both eyes'],['lower','Lower the cloth']];
@@ -238,7 +245,8 @@ export function showActions(s){
 }
 export function hallTargetLabel(s,id){
   if(id==='yard-tomb')return 'Touch the gravestone';
-  if(id==='keyhole')return 'Look through the keyhole';
+  if(s.stage==='travel'&&(id==='keyhole'||id==='front-door'))return 'Unlock the front door';
+  if(id==='keyhole')return s.stage==='mimic'?'Look back into the hall':'Look through the keyhole';
   if(id==='painting')return 'Lift the painting';
   if(id==='cover-painting')return s.eyeCover==='direct'?'Lift the cloth off the frame':'Cover the painted eyes';
   if(id==='hall-key')return s.keyTaken?'Inspect the empty hand':'Lift the folded cloth';
@@ -253,10 +261,10 @@ function view(s,events=[]){
     caption:s.mirrorOpen?(s.mirrorTime>=MIRROR_SCREAM_AT&&s.mirrorTime<MIRROR_SCREAM_AT+1.7?'[A woman screams just behind your shoulder.]':''):[s.voiceUntil>s.elapsed?s.voiceCaption:'',s.captionUntil>s.elapsed?s.caption:''].filter(Boolean).join('\n'),
     gaitBeat:s.gaitBeat,doorAmount:s.doorAmount,frontOpen:s.doorAmount>.99,phoneAnswered:s.phoneAnswered,phoneUp:s.phoneUp,keyTaken:s.keyTaken,
     handVisible:s.stage==='hand'||s.keyTaken,handReach:s.handPose,coverEye:s.eyeCover==='direct'||coveredDuringTest(s)?1:0,
-    bodyVisible:isCopy&&s.stage!=='reflection'&&s.eyeCover!=='direct',rise:s.eyeCover==='direct'?0:(s.copied.stand||0),
+    bodyVisible:isCopy,rise:s.eyeCover==='direct'?0:(s.copied.stand||0),
     stride:Math.sin(s.copied.stride),crouch:s.copied.crouch,raise:Math.max(s.copied.raise,(s.copied.clothLevel||0)/2),blind:s.eyeCover==='copied'?1:(s.copied.clothLevel||0)/2,
     headYaw:s.copied.yaw,headPitch:s.copied.pitch,playerPose:s.pose,blindfold:s.clothLevel,eyeCover:s.eyeCover,knocks:s.knocks,
-    tape:s.stage==='replay'||s.stage==='imprint'?playback(s):null,projection:s.stage==='reflection'?{...s.copied,x:-2.72,z:6.52}:null,
+    tape:s.stage==='replay'||s.stage==='imprint'?playback(s):null,projection:s.stage==='reflection'?{...s.copied,x:-2.03,z:6.99}:null,
     lightDip:0,watcherAmount:0,actions:showActions(s)};
 }
 export function advanceHallChapter(s,dt,ctx={}){
@@ -297,6 +305,7 @@ export function advanceHallChapter(s,dt,ctx={}){
   if(s.stage==='imprint'&&s.stageTime>=KEYHOLE_HOLD){
     stage(s,'reflection');cue(s,'show-door',.4);
   }
+  if(s.stage==='reflection'&&s.stageTime>=LIVE_RETURN_SECONDS)leaveKeyhole(s);
   if(seconds>0&&['imprint','reflection','rising','mimic','opening'].includes(s.stage)&&!s.eyeCover){
     const stand=s.stage==='imprint'||s.stage==='reflection'?0:amount((s.elapsed-s.stoodAt)/1.65);
     s.copyQueue.push({...s.pose,t:s.elapsed,clothLevel:s.clothLevel,stand});
